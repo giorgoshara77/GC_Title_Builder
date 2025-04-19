@@ -1,44 +1,26 @@
 import streamlit as st
+import re
 
-st.set_page_config(page_title="GC Title Generator", page_icon="🛍️")
-
+st.set_page_config(page_title="GC Title Generator")
 st.title("🛍️ GC Title Generator")
 st.subheader("Create optimized and eye-catching eBay titles for your jewelry listings.")
 
-# Input from the user
-product_description = st.text_input("Describe your product (e.g., 'gold-plated ring with clear CZ')")
+# Step 1: Input field for AlamodeOnline product link
+product_url = st.text_input("Paste your AlamodeOnline product URL")
 
-# Title style options
-st.markdown("**Choose title style preferences:**")
-style_options = st.multiselect(
-    "Select style(s) to apply:",
-    ["Elegant", "Minimal", "Keyword-rich", "Bold", "Occasion-based"]
-)
+# Function to validate AlamodeOnline URLs
+def is_valid_alamode_url(url):
+    return bool(re.match(r"https://www\.alamodeonline\.com/view-product\?.+", url))
 
-# Keyword emphasis
-emphasize_keywords = st.checkbox("Emphasize important keywords (like 'Gift', 'Fashion', etc.)", value=True)
-
-# Generate button
-if st.button("Generate Title"):
-    if not product_description:
-        st.warning("Please enter a product description.")
+# Show URL status
+if product_url:
+    if is_valid_alamode_url(product_url):
+        st.success("✅ Valid AlamodeOnline URL. Ready to extract product data.")
+        st.info("🔧 In the next step, we'll extract title, tags, and other info from this link.")
     else:
-        # Basic logic for demonstration
-        base_title = product_description.title()
+        st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
 
-        if "Elegant" in style_options:
-            base_title = "Elegant " + base_title
-        if "Minimal" in style_options:
-            base_title = base_title.split(",")[0]
-        if "Keyword-rich" in style_options:
-            base_title += " | Jewelry, Fashion, Gift"
-        if "Bold" in style_options:
-            base_title = f"**{base_title}**"
-        if "Occasion-based" in style_options:
-            base_title += " - Perfect for Any Occasion"
+# Placeholder for next steps
+st.markdown("---")
+st.markdown("🚧 Next: We'll implement the product info extractor and title generator.")
 
-        if emphasize_keywords:
-            base_title += " 💎"
-
-        st.success("Here's your generated title:")
-        st.write(base_title)
