@@ -15,27 +15,23 @@ def is_valid_alamode_url(url):
     return bool(re.match(r"https://www\.alamodeonline\.com/view-product\?.+", url))
 
 # Step 2: Extract product title and tags
+@st.cache_data(show_spinner=False)
 def extract_product_info(url):
     try:
-        response = requests.get(url, timeout=10)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        # Title
-        title_tag = soup.find("h1")
-        title = title_tag.text.strip() if title_tag else "No title found"
+        # Extract title
+        title_element = soup.find("h1", class_="product-title")
+        title = title_element.get_text(strip=True) if title_element else "Title not found"
 
-        # Tags
-        tags = []
-        tag_spans = soup.find_all("span", class_="tag")
-        for span in tag_spans:
-            tag = span.text.strip()
-            if tag:
-                tags.append(tag)
+        # Extract tags
+        tags_section = soup.find("div", class_="tags")
+        tags = [tag.get_text(strip=True) for tag in tags_section.find_all("a")] if tags_section else []
 
         return title, tags
-
     except Exception as e:
-        return None, []
+        return "Error", [str(e)]
 
 # Step 3: Display product info
 if product_url:
@@ -44,14 +40,19 @@ if product_url:
 
         title, tags = extract_product_info(product_url)
 
-        st.markdown("### 📝 Product Info Extracted:")
-        st.write(f"**Title:** {title}")
-        st.write(f"**Tags:** {', '.join(tags) if tags else 'No tags found'}")
-
-        # Placeholder for next step
-        st.markdown("---")
-        st.markdown("✅ Ready to generate your eBay title in the next step.")
+        if title == "Error":
+            st.error("❌ Failed to extract product info.")
+        else:
+            st.markdown("---")
+            st.markdown("### 📝 Extracted Product Info")
+            st.write(f"**Title:** {title}")
+            st.write(f"**Tags:** {', '.join(tags) if tags else 'No tags found'}")
     else:
-        st.error("❌ This doesn't look like a valid AlamodeOnline product URL.")
+        st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
+
+# Placeholder for next step
+st.markdown("---")
+st.markdown("🚧 Next: We’ll use this info to generate a compliant eBay title.")
+
 
 
