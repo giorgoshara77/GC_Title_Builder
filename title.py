@@ -20,11 +20,11 @@ def extract_product_info(url):
         response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Extract title from meta tag (works for Shopify)
+        # Extract title from meta tag
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
-        # Extract tags (if available – fallback only)
+        # Tags – not currently used (fallback only)
         tags = []
         tag_spans = soup.find_all("span", class_="tag")
         for span in tag_spans:
@@ -34,10 +34,10 @@ def extract_product_info(url):
 
         return title, tags
 
-    except Exception as e:
+    except Exception:
         return None, []
 
-# Step 3: Display product info
+# Step 3: Display product info and show Generate button
 if product_url:
     if is_valid_alamode_url(product_url):
         st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
@@ -48,7 +48,13 @@ if product_url:
         st.write(f"**Title:** {title if title else 'No title found'}")
         st.write(f"**Tags:** {', '.join(tags) if tags else 'No tags found'}")
 
-        st.markdown("---")
-        st.markdown("🛠️ Next: We’ll use this info to generate a compliant eBay title.")
+        if title and st.button("✨ Generate Title"):
+            # Step 4: Clean and simplify the title for eBay
+            cleaned_title = re.sub(r"[^a-zA-Z0-9,| '-]", "", title)
+            cleaned_title = cleaned_title.replace("  ", " ")
+            final_title = cleaned_title.strip()
+
+            st.markdown("### 🛒 Your eBay Title")
+            st.success(final_title)
     else:
         st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
