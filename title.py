@@ -10,46 +10,41 @@ st.subheader("Create optimized and eye-catching eBay titles for your jewelry lis
 # Step 1: Input field for AlamodeOnline product link
 product_url = st.text_input("Paste your AlamodeOnline product URL")
 
-# ✅ Updated URL validation to support new AlamodeOnline product link format
+# Step 2: Validate the AlamodeOnline URL
 def is_valid_alamode_url(url):
-    return bool(re.match(r"https://(www\.)?alamodeonline\.com/collections/.+/products/.+", url))
+    return bool(re.match(r"https://alamodeonline\.com/.+/products/.+", url))
 
-# Step 2: Extract product title and tags
+# Step 3: Extract product title and tags
 @st.cache_data(show_spinner=False)
 def extract_product_info(url):
     try:
         response = requests.get(url)
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Extract title
-        title_element = soup.find("h1", class_="product-title")
+        # Extract product title
+        title_element = soup.select_one("div.product-info h1")
         title = title_element.get_text(strip=True) if title_element else "Title not found"
 
         # Extract tags
-        tags_section = soup.find("div", class_="tags")
-        tags = [tag.get_text(strip=True) for tag in tags_section.find_all("a")] if tags_section else []
+        tag_spans = soup.select("div#product-tags span.tag")
+        tags = [span.get_text(strip=True) for span in tag_spans] if tag_spans else []
 
         return title, tags
     except Exception as e:
         return "Error", [str(e)]
 
-# Step 3: Display product info
+# Step 4: Display product info
 if product_url:
     if is_valid_alamode_url(product_url):
         st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
 
         title, tags = extract_product_info(product_url)
 
-        if title == "Error":
-            st.error("❌ Failed to extract product info.")
-        else:
-            st.markdown("---")
-            st.markdown("### 📝 Extracted Product Info")
-            st.write(f"**Title:** {title}")
-            st.write(f"**Tags:** {', '.join(tags) if tags else 'No tags found'}")
+        st.markdown("### 📝 Extracted Product Info")
+        st.write(f"**Title:** {title}")
+        st.write(f"**Tags:** {', '.join(tags) if tags else 'No tags found'}")
+
+        st.markdown("---")
+        st.markdown("🏗️ Next: We’ll use this info to generate a compliant eBay title.")
     else:
         st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
-
-# Placeholder for next step
-st.markdown("---")
-st.markdown("🚧 Next: We’ll use this info to generate a compliant eBay title.")
