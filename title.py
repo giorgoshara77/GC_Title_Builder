@@ -10,9 +10,9 @@ st.subheader("Create optimized and eye-catching eBay titles for your jewelry lis
 # Step 1: Input field for AlamodeOnline product link
 product_url = st.text_input("Paste your AlamodeOnline product URL")
 
-# Validate the AlamodeOnline URL
+# ✅ Updated URL validation to support new AlamodeOnline product link format
 def is_valid_alamode_url(url):
-    return bool(re.match(r"https://www\.alamodeonline\.com/view-product\?.+", url))
+    return bool(re.match(r"https://(www\.)?alamodeonline\.com/collections/.+/products/.+", url))
 
 # Step 2: Extract product title and tags
 @st.cache_data(show_spinner=False)
@@ -53,6 +53,3 @@ if product_url:
 # Placeholder for next step
 st.markdown("---")
 st.markdown("🚧 Next: We’ll use this info to generate a compliant eBay title.")
-
-
-
