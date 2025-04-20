@@ -51,7 +51,7 @@ def transform_title(raw_title, tags):
     is_set = "ring sets" in tags or "set" in raw_title.lower()
     base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
-    # Priority #2: Style (partial matches allowed, like "heart (♥)")
+    # Priority #2: Style (partial matches allowed)
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     styles = []
     for tag in tags:
@@ -123,8 +123,9 @@ def transform_title(raw_title, tags):
 
     return final_title.strip()
 
-# UI Logic
-if product_url:
+# ========== UI Logic ==========
+
+if st.button("🔍 Load Product Info") and product_url:
     if is_valid_alamode_url(product_url):
         st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
         title, tags = extract_product_info(product_url)
