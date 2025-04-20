@@ -21,7 +21,7 @@ def extract_product_info(url):
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
-        # Extract tags from visible tag links
+        # Extract tags from the div block with class 'product-single__tags'
         tags = []
         tag_container = soup.find("div", class_="product-single__tags")
         if tag_container:
@@ -36,17 +36,31 @@ def extract_product_info(url):
         return None, []
 
 def transform_title(raw_title, tags):
-    # Clean original title
+    # Clean the original title
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
+
+    # Used terms tracker to avoid duplicates
+    used_terms = set()
+
+    def add_term(term):
+        lower_term = term.lower()
+        if lower_term not in used_terms:
+            used_terms.add(lower_term)
+            return term
+        return None
 
     # Priority #1: Target Audience + Product Type
     is_set = "ring sets" in tags or "set" in raw_title.lower()
-    base = "Women's Ring Set" if is_set else "Women's Ring"
+    base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
     # Priority #2: Style
-    style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
-    styles = [tag.capitalize() for tag in tags if tag in style_terms]
-    style_str = ' '.join(styles).strip()
+    styles = []
+    for tag in tags:
+        if tag in ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]:
+            styled = add_term(tag.capitalize())
+            if styled:
+                styles.append(styled)
+    style_str = ' '.join(styles)
 
     # Priority #3: Stone Info
     stone = "Clear Cubic Zirconia"
@@ -57,50 +71,52 @@ def transform_title(raw_title, tags):
     if color_match:
         stone = stone.replace("Clear", color_match.group().capitalize())
 
-    # Avoid duplicate shape if already in styles
-    shape_terms = ["round", "heart", "pear", "square"]
-    shapes = [tag.capitalize() for tag in tags if tag in shape_terms and tag.capitalize() not in styles]
-    if shapes:
-        stone = f"{' '.join(shapes)} {stone}"
+    # Stone Shape
+    shape_tag = next((tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]), None)
+    if shape_tag and shape_tag.lower() not in used_terms:
+        used_terms.add(shape_tag.lower())
+        stone = f"{shape_tag} {stone}"
 
     # Priority #4: Metal Info
-    material = ""
-    if "brass" in raw_title.lower():
-        material = "Brass"
-    elif "stainless" in raw_title.lower():
-        material = "Stainless Steel"
-
     plating = ""
-    if "rhodium" in raw_title.lower():
-        plating = "Rhodium-Plated"
-    elif "IP Gold" in raw_title:
+    if "IP Gold" in raw_title:
         plating = "Gold-Plated"
     elif "IP Rose Gold" in raw_title:
         plating = "Rose Gold-Plated"
     elif "IP Black" in raw_title:
         plating = "Black-Plated"
+    elif "rhodium" in raw_title.lower() or "rhodium" in tags:
+        plating = "Rhodium-Plated"
 
-    metal_info = f"{material} {plating}".strip()
+    material = ""
+    if "stainless" in raw_title.lower():
+        material = "Stainless Steel"
+    elif "brass" in raw_title.lower() or "brass" in tags:
+        material = "Brass"
+
+    metal_info_parts = [add_term(material), add_term(plating)]
+    metal_info = ' '.join(filter(None, metal_info_parts))
 
     # Priority #5: Optional Descriptors
     descriptors = []
     if is_set:
-        descriptors.append("2 Pcs")
+        added = add_term("2 Pcs")
+        if added:
+            descriptors.append(added)
     if "high polished" in raw_title.lower():
-        descriptors.append("High Polished")
-    descriptors.append("Gift")
+        added = add_term("High Polished")
+        if added:
+            descriptors.append(added)
 
-    # Final title assembly
-    parts = [base]
-    if style_str:
-        parts.append(style_str)
-    if stone:
-        parts.append(stone)
-    if metal_info:
-        parts.append(metal_info)
+    gift = add_term("Gift")
+    if gift:
+        descriptors.append(gift)
 
+    # Build base title in priority order
+    parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
+    # Fill remaining space with optional descriptors
     for descriptor in descriptors:
         if len(final_title + ", " + descriptor) <= 75:
             final_title += ", " + descriptor
