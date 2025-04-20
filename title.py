@@ -7,10 +7,19 @@ st.set_page_config(page_title="GC Title Generator")
 st.title("🛍️ GC Title Generator")
 st.subheader("Create optimized and eye-catching eBay titles for your jewelry listings.")
 
-product_url = st.text_input("Paste your AlamodeOnline product URL")
+user_input = st.text_input("Paste AlamodeOnline product URL or enter SKU (e.g. TK3180)")
 
 def is_valid_alamode_url(url):
-    return "alamodeonline.com/products/" in url
+    return url.startswith("https://alamodeonline.com/products/")
+
+def build_product_url(input_value):
+    input_value = input_value.strip()
+    if input_value.lower().startswith("https://alamodeonline.com/products/"):
+        return input_value
+    elif re.match(r"^[A-Za-z]{2,3}\d{3,5}$", input_value):  # Matches SKU like TK3180, CM12345
+        return f"https://alamodeonline.com/products/{input_value.lower()}"
+    else:
+        return None
 
 def extract_product_info(url):
     try:
@@ -51,7 +60,7 @@ def transform_title(raw_title, tags):
     is_set = "ring sets" in tags or "set" in raw_title.lower()
     base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
-    # Priority #2: Style (partial matches allowed, like "heart (♥)")
+    # Priority #2: Style (partial matches allowed)
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     styles = []
     for tag in tags:
@@ -132,14 +141,16 @@ if "title" not in st.session_state:
 if "tags" not in st.session_state:
     st.session_state.tags = []
 
+product_url = build_product_url(user_input)
+
 if st.button("🔍 Load Product Info") and product_url:
     if is_valid_alamode_url(product_url):
-        st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
+        st.success("✅ Valid product input. Extracting product data...")
         title, tags = extract_product_info(product_url)
         st.session_state.title = title
         st.session_state.tags = tags
     else:
-        st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
+        st.error("❌ Invalid product URL or SKU format.")
 
 # Show product info if loaded
 if st.session_state.title and st.session_state.tags:
