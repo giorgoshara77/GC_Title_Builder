@@ -10,29 +10,25 @@ st.subheader("Create optimized and eye-catching eBay titles for your jewelry lis
 product_url = st.text_input("Paste your AlamodeOnline product URL")
 
 def is_valid_alamode_url(url):
-    return bool(re.match(r"^https://alamodeonline\.com/products/[a-zA-Z0-9\-]+", url))
+    return "alamodeonline.com/products/" in url
 
 def extract_product_info(url):
     try:
         response = requests.get(url, timeout=10)
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.text, 'html.parser')
 
         # Extract product title
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
-        # Extract tags
+        # Extract tags from visible tag links
         tags = []
         tag_container = soup.find("div", class_="product-single__tags")
         if tag_container:
             tag_links = tag_container.find_all("a")
-            for a in tag_links:
-                tag_text = a.get_text(strip=True)
-                tag_text = tag_text.replace("â™¡", "heart").replace("™", "").replace("(heart)", "heart")
-                tag_text = tag_text.replace(",", "").lower().strip()
-                if tag_text and tag_text not in tags:
-                    tags.append(tag_text)
+            tags = [a.get_text(strip=True).lower().rstrip(',') for a in tag_links if a.get_text(strip=True)]
 
+        st.write("DEBUG: Extracted Tags", tags)
         return title, tags
 
     except Exception as e:
@@ -42,33 +38,45 @@ def extract_product_info(url):
 def transform_title(raw_title, tags):
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
 
+    used_terms = set()
+
+    def add_term(term):
+        lower_term = term.lower()
+        if lower_term not in used_terms:
+            used_terms.add(lower_term)
+            return term
+        return None
+
     # Priority #1: Target Audience + Product Type
     is_set = "ring sets" in tags or "set" in raw_title.lower()
-    base = "Women's Ring Set" if is_set else "Women's Ring"
+    base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
-    # Priority #2: Style
-    style_tags = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
+    # Priority #2: Style (partial matches allowed, like "heart (♥)")
+    style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     styles = []
-    for tag in style_tags:
-        if tag in tags and tag.capitalize() not in styles:
-            styles.append(tag.capitalize())
+    for tag in tags:
+        for style in style_terms:
+            if style in tag:
+                styled = add_term(style.capitalize())
+                if styled:
+                    styles.append(styled)
+                break
     style_str = ' '.join(styles)
 
     # Priority #3: Stone Info
     stone = "Clear Cubic Zirconia"
     if "simulated crystal" in raw_title.lower():
         stone = "Simulated Crystal"
+
     color_match = re.search(r"(champagne|blue|clear|pink|purple|green|black|white|red)", raw_title.lower())
     if color_match:
         stone = stone.replace("Clear", color_match.group().capitalize())
 
-    shape_tags = ["round", "heart", "pear", "square"]
-    shape = []
-    for tag in shape_tags:
-        if tag in tags and tag.capitalize() not in shape:
-            shape.append(tag.capitalize())
-    if shape:
-        stone = f"{' '.join(shape)} {stone}"
+    shape_tag = next((tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]
+                      and tag.capitalize().lower() not in used_terms), None)
+    if shape_tag:
+        used_terms.add(shape_tag.lower())
+        stone = f"{shape_tag} {stone}"
 
     # Priority #4: Metal Info
     plating = ""
@@ -78,34 +86,35 @@ def transform_title(raw_title, tags):
         plating = "Rose Gold-Plated"
     elif "IP Black" in raw_title:
         plating = "Black-Plated"
-    elif "rhodium" in tags:
+    elif "rhodium" in raw_title.lower() or "rhodium" in tags:
         plating = "Rhodium-Plated"
 
     material = ""
     if "stainless" in raw_title.lower():
         material = "Stainless Steel"
-    elif "brass" in tags:
+    elif "brass" in raw_title.lower() or "brass" in tags:
         material = "Brass"
 
-    metal_info = " ".join(filter(None, [material, plating])).strip()
+    metal_info_parts = [add_term(material), add_term(plating)]
+    metal_info = ' '.join(filter(None, metal_info_parts))
 
     # Priority #5: Optional Descriptors
     descriptors = []
     if is_set:
-        descriptors.append("2 Pcs")
+        added = add_term("2 Pcs")
+        if added:
+            descriptors.append(added)
     if "high polished" in raw_title.lower():
-        descriptors.append("High Polished")
-    descriptors.append("Gift")
+        added = add_term("High Polished")
+        if added:
+            descriptors.append(added)
 
-    # Build title
-    parts = [base]
-    if style_str:
-        parts.append(style_str)
-    if stone:
-        parts.append(stone)
-    if metal_info:
-        parts.append(metal_info)
+    gift = add_term("Gift")
+    if gift:
+        descriptors.append(gift)
 
+    # Build base title
+    parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
     for descriptor in descriptors:
@@ -114,24 +123,21 @@ def transform_title(raw_title, tags):
 
     return final_title.strip()
 
-# ========== UI Logic ==========
-
-if is_valid_alamode_url(product_url):
-    if st.button("🔍 Load Product Info"):
+# UI Logic
+if product_url:
+    if is_valid_alamode_url(product_url):
+        st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
         title, tags = extract_product_info(product_url)
-        st.session_state.title = title
-        st.session_state.tags = tags
 
-    if "title" in st.session_state and "tags" in st.session_state:
         st.markdown("### 📝 Extracted Product Info")
-        st.write(f"**Title:** {st.session_state.title if st.session_state.title else 'No title found'}")
-        st.write(f"**Tags:** {', '.join(st.session_state.tags) if st.session_state.tags else 'No tags found'}")
-        st.write("DEBUG: Extracted Tags", st.session_state.tags)
+        st.write(f"**Title:** {title if title else 'No title found'}")
+        st.write(f"**Tags:** {', '.join(tags) if tags else 'No tags found'}")
+        st.write("DEBUG: Extracted Tags", tags)
 
-        if st.button("✨ Generate Title"):
-            final_title = transform_title(st.session_state.title, st.session_state.tags)
+        if title and st.button("✨ Generate Title"):
+            final_title = transform_title(title, tags)
             st.markdown("### 🛒 Your eBay Title")
             st.text_area("Generated Title", final_title, height=100)
             st.markdown(f"**Character Count:** `{len(final_title)}/75`")
-else:
-    st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
+    else:
+        st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
