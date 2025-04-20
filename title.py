@@ -32,58 +32,70 @@ def extract_product_info(url):
         return None, []
 
 def transform_title(raw_title, tags):
-    # Remove product code (e.g. TK1318)
+    # Clean title
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
 
-    # Base
-    base = "Women's Ring"
-    if "set" in raw_title.lower():
-        base = "Women's Ring Set"
+    # Priority #1: Target + Product Type
+    is_set = "ring sets" in tags or "set" in raw_title.lower()
+    base = "Women's Ring Set" if is_set else "Women's Ring"
 
-    # Materials
+    # Priority #2: Design / Style (from tags only)
+    styles = [tag.capitalize() for tag in tags if tag in ["solitaire", "halo", "heart", "stackable", "eternity", "pavé"]]
+    style_str = ' '.join(styles)
+
+    # Priority #3: Stone Info
+    stone = "Clear Cubic Zirconia"
+    if "simulated crystal" in raw_title.lower():
+        stone = "Simulated Crystal"
+    color_match = re.search(r"(champagne|blue|clear|pink|purple|green|black|white|red)", raw_title.lower())
+    if color_match:
+        stone_color = color_match.group().capitalize()
+        stone = stone.replace("Clear", stone_color)
+
+    shape = [tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]]
+    if shape:
+        stone = f"{' '.join(shape)} {stone}"
+
+    # Priority #4: Metal Info
+    plating = ""
+    if "IP Gold" in raw_title:
+        plating = "Gold-Plated"
+    elif "IP Rose Gold" in raw_title:
+        plating = "Rose Gold-Plated"
+    elif "IP Black" in raw_title:
+        plating = "Black-Plated"
+
     material = ""
     if "stainless" in raw_title.lower():
         material = "Stainless Steel"
     elif "brass" in raw_title.lower():
         material = "Brass"
 
-    # Plating
-    plating = ""
-    if "IP Gold" in raw_title:
-        plating = "Gold Plated"
-    elif "IP Rose Gold" in raw_title:
-        plating = "Rose Gold Plated"
-    elif "IP Black" in raw_title:
-        plating = "Black Plated"
+    metal_info = f"{plating} {material}".strip()
 
-    # Stone
-    stone = "Clear Cubic Zirconia"
-    if "simulated crystal" in raw_title.lower():
-        stone = "Simulated Crystal"
+    # Priority #5: Optional Descriptors
+    descriptors = []
+    if is_set:
+        descriptors.append("2 pcs")
+    if "high polished" in raw_title.lower():
+        descriptors.append("High Polished")
+    if len(descriptors) == 0:
+        descriptors.append("Gift")
 
-    # Shape from tags
-    shape = [t.capitalize() for t in tags if t in ["round", "pear", "heart", "square"]]
-    if shape:
-        stone = f"{' '.join(shape)} {stone}"
-
-    # Styles from tags
-    styles = [t.capitalize() for t in tags if t in ["halo", "pavé", "solitaire", "eternity"]]
-
-    # Final title parts
+    # Combine all parts
     parts = [base]
-    parts += styles
-    if plating:
-        parts.append(plating)
-    if material:
-        parts.append(material)
-    parts += ["with", stone, "Gift Jewelry"]
+    if style_str:
+        parts.append(style_str)
+    if stone:
+        parts.append(stone)
+    if metal_info:
+        parts.append(metal_info)
+    parts += descriptors
 
-    final = ' '.join(parts)
-    final = final.replace("  ", " ")
+    final = ', '.join([p for p in parts if p])
+    return final[:75]  # Enforce character limit
 
-    return final.strip()[:75]
-
-# App logic
+# UI Logic
 if product_url:
     if is_valid_alamode_url(product_url):
         st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
