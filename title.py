@@ -120,6 +120,7 @@ if product_url:
         st.markdown("### 📝 Extracted Product Info")
         st.write(f"**Title:** {title if title else 'No title found'}")
         st.write(f"**Tags:** {', '.join(tags) if tags else 'No tags found'}")
+        st.write("DEBUG: Extracted Tags", tags)
 
         if title and st.button("✨ Generate Title"):
             final_title = transform_title(title, tags)
