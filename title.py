@@ -21,22 +21,19 @@ def extract_product_info(url):
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
-        # ✅ NEW: Extract tags from all <span class="tag"> elements
+        # NEW TAG LOGIC
         tags = []
-        tag_spans = soup.find_all("span", class_="tag")
-        for span in tag_spans:
-            tag = span.get_text(strip=True).lower()
-            if tag:
-                tags.append(tag)
+        tag_container = soup.find("div", class_="product-single__tags")
+        if tag_container:
+            tag_links = tag_container.find_all("a")
+            tags = [a.get_text(strip=True).lower().rstrip(',') for a in tag_links if a.get_text(strip=True)]
 
         st.write("DEBUG: Extracted Tags", tags)
         return title, tags
+
     except Exception as e:
         st.write("DEBUG: Error extracting tags", str(e))
         return None, []
-
-
-
 
 def transform_title(raw_title, tags):
     # Clean the original title
