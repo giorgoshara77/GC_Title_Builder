@@ -15,7 +15,7 @@ def is_valid_alamode_url(url):
 def extract_product_info(url):
     try:
         response = requests.get(url, timeout=10)
-        soup = BeautifulSoup(response.content, 'html.parser')  # Use .content instead of .text for encoding safety
+        soup = BeautifulSoup(response.content, 'html.parser')  # Use .content for encoding safety
 
         # Extract product title
         meta_title = soup.find("meta", property="og:title")
@@ -28,7 +28,7 @@ def extract_product_info(url):
             tag_links = tag_container.find_all("a")
             for a in tag_links:
                 tag_text = a.get_text(strip=True)
-                tag_text = tag_text.replace("â™¡", "heart").replace("™", "").strip()  # Fix encoding issues
+                tag_text = tag_text.replace("â™¡", "heart").replace("™", "").replace("�", "").strip()
                 tag_text = tag_text.lower()
                 if tag_text and tag_text not in tags:
                     tags.append(tag_text)
@@ -92,9 +92,9 @@ def transform_title(raw_title, tags):
         descriptors.append("2 Pcs")
     if "high polished" in raw_title.lower():
         descriptors.append("High Polished")
-    descriptors.append("Gift")  # Add gift if space allows
+    descriptors.append("Gift")  # Always last
 
-    # Build base title in order
+    # Build base title
     parts = [base]
     if style_str:
         parts.append(style_str)
@@ -114,24 +114,24 @@ def transform_title(raw_title, tags):
 
 # ========== UI Logic ==========
 
-if is_valid_alamode_url(product_url):
-    st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
-
-    if st.button("🔍 Load Product Info"):
+if st.button("🔍 Load Product Info"):
+    if is_valid_alamode_url(product_url):
+        st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
         title, tags = extract_product_info(product_url)
         st.session_state.title = title
         st.session_state.tags = tags
+    else:
+        st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
 
-    if "title" in st.session_state and "tags" in st.session_state:
-        st.markdown("### 📝 Extracted Product Info")
-        st.write(f"**Title:** {st.session_state.title if st.session_state.title else 'No title found'}")
-        st.write(f"**Tags:** {', '.join(st.session_state.tags) if st.session_state.tags else 'No tags found'}")
-        st.write("DEBUG: Extracted Tags", st.session_state.tags)
+# Show extracted info (if available)
+if "title" in st.session_state and "tags" in st.session_state:
+    st.markdown("### 📝 Extracted Product Info")
+    st.write(f"**Title:** {st.session_state.title if st.session_state.title else 'No title found'}")
+    st.write(f"**Tags:** {', '.join(st.session_state.tags) if st.session_state.tags else 'No tags found'}")
+    st.write("DEBUG: Extracted Tags", st.session_state.tags)
 
-        if st.button("✨ Generate Title"):
-            final_title = transform_title(st.session_state.title, st.session_state.tags)
-            st.markdown("### 🛒 Your eBay Title")
-            st.text_area("Generated Title", final_title, height=100)
-            st.markdown(f"**Character Count:** `{len(final_title)}/75`")
-else:
-    st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
+    if st.button("✨ Generate Title"):
+        final_title = transform_title(st.session_state.title, st.session_state.tags)
+        st.markdown("### 🛒 Your eBay Title")
+        st.text_area("Generated Title", final_title, height=100)
+        st.markdown(f"**Character Count:** `{len(final_title)}/75`")
