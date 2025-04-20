@@ -17,19 +17,22 @@ def extract_product_info(url):
         response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
 
+        # Get product title
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
+        # Look for the <p> that includes 'Tags:' label
+        tag_paragraph = soup.find('p', string=re.compile(r"Tags:", re.IGNORECASE))
         tags = []
-        tag_spans = soup.find_all("span", class_="tag")
-        for span in tag_spans:
-            tag = span.text.strip().lower()
-            if tag:
-                tags.append(tag)
+
+        if tag_paragraph:
+            raw_tags = tag_paragraph.get_text().replace("Tags:", "").strip()
+            tags = [t.strip().lower() for t in raw_tags.split(',') if t.strip()]
 
         return title, tags
-    except Exception:
+    except Exception as e:
         return None, []
+
 
 def transform_title(raw_title, tags):
     # Clean the original title
