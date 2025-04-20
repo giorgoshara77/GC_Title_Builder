@@ -10,7 +10,7 @@ st.subheader("Create optimized and eye-catching eBay titles for your jewelry lis
 product_url = st.text_input("Paste your AlamodeOnline product URL")
 
 def is_valid_alamode_url(url):
-    return bool(re.match(r"https://alamodeonline\.com/.+/products/.+", url))
+    return "alamodeonline.com/products/" in url
 
 def extract_product_info(url):
     try:
