@@ -21,7 +21,7 @@ def extract_product_info(url):
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
-        # NEW TAG LOGIC
+        # Extract tags
         tags = []
         tag_container = soup.find("div", class_="product-single__tags")
         if tag_container:
@@ -44,7 +44,8 @@ def transform_title(raw_title, tags):
     base = "Women's Ring Set" if is_set else "Women's Ring"
 
     # Priority #2: Style
-    styles = [tag.capitalize() for tag in tags if tag in ["solitaire", "halo", "heart", "stackable", "eternity", "pavé"]]
+    allowed_styles = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
+    styles = [style.capitalize() for style in allowed_styles if any(style in tag for tag in tags)]
     style_str = ' '.join(styles)
 
     # Priority #3: Stone Info
@@ -56,26 +57,26 @@ def transform_title(raw_title, tags):
     if color_match:
         stone = stone.replace("Clear", color_match.group().capitalize())
 
-    shape = [tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]]
+    shape_tags = ["round", "heart", "pear", "square"]
+    shape = [tag.capitalize() for tag in shape_tags if any(tag in t for t in tags)]
     if shape:
         stone = f"{' '.join(shape)} {stone}"
 
     # Priority #4: Metal Info
-    plating = ""
-    if "IP Gold" in raw_title:
-        plating = "Gold-Plated"
-    elif "IP Rose Gold" in raw_title:
-        plating = "Rose Gold-Plated"
-    elif "IP Black" in raw_title:
-        plating = "Black-Plated"
+    metal_keywords = {
+        "ip gold": "Gold-Plated",
+        "ip rose gold": "Rose Gold-Plated",
+        "ip black": "Black-Plated",
+        "rhodium": "Rhodium-Plated",
+        "stainless": "Stainless Steel",
+        "brass": "Brass"
+    }
 
-    material = ""
-    if "stainless" in raw_title.lower():
-        material = "Stainless Steel"
-    elif "brass" in raw_title.lower():
-        material = "Brass"
-
-    metal_info = f"{plating} {material}".strip()
+    metal_info = ''
+    for key, label in metal_keywords.items():
+        if key in raw_title.lower() or any(key in tag for tag in tags):
+            metal_info = label
+            break
 
     # Priority #5: Optional Descriptors
     descriptors = []
@@ -86,9 +87,9 @@ def transform_title(raw_title, tags):
     if "high polished" in raw_title.lower():
         descriptors.append("High Polished")
 
-    descriptors.append("Gift")  # Only added if there's space later
+    descriptors.append("Gift")  # Add if space allows
 
-    # Build base title in priority order
+    # Build title
     parts = [base]
     if style_str:
         parts.append(style_str)
@@ -99,7 +100,6 @@ def transform_title(raw_title, tags):
 
     final_title = ', '.join(parts)
 
-    # Fill remaining space with optional descriptors
     for descriptor in descriptors:
         if len(final_title + ", " + descriptor) <= 75:
             final_title += ", " + descriptor
