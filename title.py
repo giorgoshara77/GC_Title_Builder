@@ -15,7 +15,7 @@ def is_valid_alamode_url(url):
 def extract_product_info(url):
     try:
         response = requests.get(url, timeout=10)
-        soup = BeautifulSoup(response.content, 'html.parser')  # Use .content for encoding safety
+        soup = BeautifulSoup(response.content, 'html.parser')
 
         # Extract product title
         meta_title = soup.find("meta", property="og:title")
@@ -28,8 +28,8 @@ def extract_product_info(url):
             tag_links = tag_container.find_all("a")
             for a in tag_links:
                 tag_text = a.get_text(strip=True)
-                tag_text = tag_text.replace("â™¡", "heart").replace("™", "").replace("�", "").strip()
-                tag_text = tag_text.lower()
+                tag_text = tag_text.replace("â™¡", "heart").replace("™", "").replace("(heart)", "heart")
+                tag_text = tag_text.replace(",", "").lower().strip()
                 if tag_text and tag_text not in tags:
                     tags.append(tag_text)
 
@@ -63,7 +63,10 @@ def transform_title(raw_title, tags):
         stone = stone.replace("Clear", color_match.group().capitalize())
 
     shape_tags = ["round", "heart", "pear", "square"]
-    shape = [tag.capitalize() for tag in tags if tag in shape_tags]
+    shape = []
+    for tag in shape_tags:
+        if tag in tags and tag.capitalize() not in shape:
+            shape.append(tag.capitalize())
     if shape:
         stone = f"{' '.join(shape)} {stone}"
 
@@ -92,9 +95,9 @@ def transform_title(raw_title, tags):
         descriptors.append("2 Pcs")
     if "high polished" in raw_title.lower():
         descriptors.append("High Polished")
-    descriptors.append("Gift")  # Always last
+    descriptors.append("Gift")
 
-    # Build base title
+    # Build title
     parts = [base]
     if style_str:
         parts.append(style_str)
@@ -105,7 +108,6 @@ def transform_title(raw_title, tags):
 
     final_title = ', '.join(parts)
 
-    # Add optional descriptors if space allows
     for descriptor in descriptors:
         if len(final_title + ", " + descriptor) <= 75:
             final_title += ", " + descriptor
@@ -114,24 +116,22 @@ def transform_title(raw_title, tags):
 
 # ========== UI Logic ==========
 
-if st.button("🔍 Load Product Info"):
-    if is_valid_alamode_url(product_url):
-        st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
+if is_valid_alamode_url(product_url):
+    if st.button("🔍 Load Product Info"):
         title, tags = extract_product_info(product_url)
         st.session_state.title = title
         st.session_state.tags = tags
-    else:
-        st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
 
-# Show extracted info (if available)
-if "title" in st.session_state and "tags" in st.session_state:
-    st.markdown("### 📝 Extracted Product Info")
-    st.write(f"**Title:** {st.session_state.title if st.session_state.title else 'No title found'}")
-    st.write(f"**Tags:** {', '.join(st.session_state.tags) if st.session_state.tags else 'No tags found'}")
-    st.write("DEBUG: Extracted Tags", st.session_state.tags)
+    if "title" in st.session_state and "tags" in st.session_state:
+        st.markdown("### 📝 Extracted Product Info")
+        st.write(f"**Title:** {st.session_state.title if st.session_state.title else 'No title found'}")
+        st.write(f"**Tags:** {', '.join(st.session_state.tags) if st.session_state.tags else 'No tags found'}")
+        st.write("DEBUG: Extracted Tags", st.session_state.tags)
 
-    if st.button("✨ Generate Title"):
-        final_title = transform_title(st.session_state.title, st.session_state.tags)
-        st.markdown("### 🛒 Your eBay Title")
-        st.text_area("Generated Title", final_title, height=100)
-        st.markdown(f"**Character Count:** `{len(final_title)}/75`")
+        if st.button("✨ Generate Title"):
+            final_title = transform_title(st.session_state.title, st.session_state.tags)
+            st.markdown("### 🛒 Your eBay Title")
+            st.text_area("Generated Title", final_title, height=100)
+            st.markdown(f"**Character Count:** `{len(final_title)}/75`")
+else:
+    st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
