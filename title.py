@@ -51,7 +51,7 @@ def transform_title(raw_title, tags):
     is_set = "ring sets" in tags or "set" in raw_title.lower()
     base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
-    # Priority #2: Style (partial matches allowed)
+    # Priority #2: Style (partial matches allowed, like "heart (♥)")
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     styles = []
     for tag in tags:
@@ -123,22 +123,33 @@ def transform_title(raw_title, tags):
 
     return final_title.strip()
 
-# ========== UI Logic ==========
+# ========================
+# UI Logic
+# ========================
+
+if "title" not in st.session_state:
+    st.session_state.title = ""
+if "tags" not in st.session_state:
+    st.session_state.tags = []
 
 if st.button("🔍 Load Product Info") and product_url:
     if is_valid_alamode_url(product_url):
         st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
         title, tags = extract_product_info(product_url)
-
-        st.markdown("### 📝 Extracted Product Info")
-        st.write(f"**Title:** {title if title else 'No title found'}")
-        st.write(f"**Tags:** {', '.join(tags) if tags else 'No tags found'}")
-        st.write("DEBUG: Extracted Tags", tags)
-
-        if title and st.button("✨ Generate Title"):
-            final_title = transform_title(title, tags)
-            st.markdown("### 🛒 Your eBay Title")
-            st.text_area("Generated Title", final_title, height=100)
-            st.markdown(f"**Character Count:** `{len(final_title)}/75`")
+        st.session_state.title = title
+        st.session_state.tags = tags
     else:
         st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
+
+# Show product info if loaded
+if st.session_state.title and st.session_state.tags:
+    st.markdown("### 📝 Extracted Product Info")
+    st.write(f"**Title:** {st.session_state.title}")
+    st.write(f"**Tags:** {', '.join(st.session_state.tags)}")
+    st.write("DEBUG: Extracted Tags", st.session_state.tags)
+
+    if st.button("✨ Generate Title"):
+        final_title = transform_title(st.session_state.title, st.session_state.tags)
+        st.markdown("### 🛒 Your eBay Title")
+        st.text_area("Generated Title", final_title, height=100)
+        st.markdown(f"**Character Count:** `{len(final_title)}/75`")
