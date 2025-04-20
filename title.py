@@ -7,14 +7,11 @@ st.set_page_config(page_title="GC Title Generator")
 st.title("🛍️ GC Title Generator")
 st.subheader("Create optimized and eye-catching eBay titles for your jewelry listings.")
 
-# Step 1: Input field for AlamodeOnline product link
 product_url = st.text_input("Paste your AlamodeOnline product URL")
 
-# Validate the AlamodeOnline URL
 def is_valid_alamode_url(url):
     return bool(re.match(r"https://alamodeonline\.com/.+/products/.+", url))
 
-# Step 2: Extract product title and tags
 def extract_product_info(url):
     try:
         response = requests.get(url, timeout=10)
@@ -26,7 +23,7 @@ def extract_product_info(url):
         tags = []
         tag_spans = soup.find_all("span", class_="tag")
         for span in tag_spans:
-            tag = span.text.strip()
+            tag = span.text.strip().lower()
             if tag:
                 tags.append(tag)
 
@@ -34,32 +31,59 @@ def extract_product_info(url):
     except Exception:
         return None, []
 
-# Step 3: Clean + Optimize Title
-def optimize_title(original_title, tags=None):
-    if not original_title:
-        return "No title found"
+def transform_title(raw_title, tags):
+    # Remove product code (e.g. TK1318)
+    title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
 
-    # Remove SKU or product code (e.g., TK1318 - )
-    cleaned = re.sub(r"^[A-Z0-9\-]+\s*[-–—]\s*", "", original_title)
+    # Base
+    base = "Women's Ring"
+    if "set" in raw_title.lower():
+        base = "Women's Ring Set"
 
-    # Capitalize key terms
-    cleaned = cleaned.replace("aaa grade cz", "AAA CZ")
-    cleaned = cleaned.replace("no plating", "no plating")
-    cleaned = cleaned.replace("stainless steel", "Stainless Steel")
-    cleaned = cleaned.replace("high polished", "High Polished")
+    # Materials
+    material = ""
+    if "stainless" in raw_title.lower():
+        material = "Stainless Steel"
+    elif "brass" in raw_title.lower():
+        material = "Brass"
 
-    # Optional: Add helpful eBay keywords if space allows
-    if len(cleaned) < 70:
-        cleaned += " | Gift"
+    # Plating
+    plating = ""
+    if "IP Gold" in raw_title:
+        plating = "Gold Plated"
+    elif "IP Rose Gold" in raw_title:
+        plating = "Rose Gold Plated"
+    elif "IP Black" in raw_title:
+        plating = "Black Plated"
 
-    # Final cleanup
-    cleaned = cleaned.strip()
-    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    # Stone
+    stone = "Clear Cubic Zirconia"
+    if "simulated crystal" in raw_title.lower():
+        stone = "Simulated Crystal"
 
-    # Limit to 75 characters
-    return cleaned[:75]
+    # Shape from tags
+    shape = [t.capitalize() for t in tags if t in ["round", "pear", "heart", "square"]]
+    if shape:
+        stone = f"{' '.join(shape)} {stone}"
 
-# Step 4: App logic
+    # Styles from tags
+    styles = [t.capitalize() for t in tags if t in ["halo", "pavé", "solitaire", "eternity"]]
+
+    # Final title parts
+    parts = [base]
+    parts += styles
+    if plating:
+        parts.append(plating)
+    if material:
+        parts.append(material)
+    parts += ["with", stone, "Gift Jewelry"]
+
+    final = ' '.join(parts)
+    final = final.replace("  ", " ")
+
+    return final.strip()[:75]
+
+# App logic
 if product_url:
     if is_valid_alamode_url(product_url):
         st.success("✅ Valid AlamodeOnline URL. Extracting product data...")
@@ -70,8 +94,9 @@ if product_url:
         st.write(f"**Tags:** {', '.join(tags) if tags else 'No tags found'}")
 
         if title and st.button("✨ Generate Title"):
-            final_title = optimize_title(title, tags)
+            final_title = transform_title(title, tags)
             st.markdown("### 🛒 Your eBay Title")
-            st.success(final_title)
+            st.text_area("Generated Title", final_title, height=100)
+            st.markdown(f"**Character Count:** `{len(final_title)}/75`")
     else:
         st.error("❌ This doesn't look like a valid AlamodeOnline product URL. Please check the link.")
