@@ -21,7 +21,7 @@ def extract_product_info(url):
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
-        # Extract tags from the div block with class 'product-single__tags'
+        # Extract tags from visible tag links
         tags = []
         tag_container = soup.find("div", class_="product-single__tags")
         if tag_container:
@@ -36,10 +36,8 @@ def extract_product_info(url):
         return None, []
 
 def transform_title(raw_title, tags):
-    # Clean the original title
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
 
-    # Used terms tracker to avoid duplicates
     used_terms = set()
 
     def add_term(term):
@@ -53,13 +51,16 @@ def transform_title(raw_title, tags):
     is_set = "ring sets" in tags or "set" in raw_title.lower()
     base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
-    # Priority #2: Style
+    # Priority #2: Style (partial matches allowed, like "heart (♥)")
+    style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     styles = []
     for tag in tags:
-        if tag in ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]:
-            styled = add_term(tag.capitalize())
-            if styled:
-                styles.append(styled)
+        for style in style_terms:
+            if style in tag:
+                styled = add_term(style.capitalize())
+                if styled:
+                    styles.append(styled)
+                break
     style_str = ' '.join(styles)
 
     # Priority #3: Stone Info
@@ -71,9 +72,9 @@ def transform_title(raw_title, tags):
     if color_match:
         stone = stone.replace("Clear", color_match.group().capitalize())
 
-    # Stone Shape
-    shape_tag = next((tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]), None)
-    if shape_tag and shape_tag.lower() not in used_terms:
+    shape_tag = next((tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]
+                      and tag.capitalize().lower() not in used_terms), None)
+    if shape_tag:
         used_terms.add(shape_tag.lower())
         stone = f"{shape_tag} {stone}"
 
@@ -112,11 +113,10 @@ def transform_title(raw_title, tags):
     if gift:
         descriptors.append(gift)
 
-    # Build base title in priority order
+    # Build base title
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
-    # Fill remaining space with optional descriptors
     for descriptor in descriptors:
         if len(final_title + ", " + descriptor) <= 75:
             final_title += ", " + descriptor
