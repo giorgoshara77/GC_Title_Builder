@@ -32,14 +32,14 @@ def extract_product_info(url):
         return None, []
 
 def transform_title(raw_title, tags):
-    # Clean title
+    # Clean the original title
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
 
-    # Priority #1: Target + Product Type
+    # Priority #1: Target Audience + Product Type
     is_set = "ring sets" in tags or "set" in raw_title.lower()
     base = "Women's Ring Set" if is_set else "Women's Ring"
 
-    # Priority #2: Design / Style (from tags only)
+    # Priority #2: Style
     styles = [tag.capitalize() for tag in tags if tag in ["solitaire", "halo", "heart", "stackable", "eternity", "pavé"]]
     style_str = ' '.join(styles)
 
@@ -47,10 +47,10 @@ def transform_title(raw_title, tags):
     stone = "Clear Cubic Zirconia"
     if "simulated crystal" in raw_title.lower():
         stone = "Simulated Crystal"
+
     color_match = re.search(r"(champagne|blue|clear|pink|purple|green|black|white|red)", raw_title.lower())
     if color_match:
-        stone_color = color_match.group().capitalize()
-        stone = stone.replace("Clear", stone_color)
+        stone = stone.replace("Clear", color_match.group().capitalize())
 
     shape = [tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]]
     if shape:
@@ -75,14 +75,16 @@ def transform_title(raw_title, tags):
 
     # Priority #5: Optional Descriptors
     descriptors = []
+
     if is_set:
-        descriptors.append("2 pcs")
+        descriptors.append("2 Pcs")
+
     if "high polished" in raw_title.lower():
         descriptors.append("High Polished")
-    if len(descriptors) == 0:
-        descriptors.append("Gift")
 
-    # Combine all parts
+    descriptors.append("Gift")  # Only added if there's space later
+
+    # Build base title in priority order
     parts = [base]
     if style_str:
         parts.append(style_str)
@@ -90,10 +92,15 @@ def transform_title(raw_title, tags):
         parts.append(stone)
     if metal_info:
         parts.append(metal_info)
-    parts += descriptors
 
-    final = ', '.join([p for p in parts if p])
-    return final[:75]  # Enforce character limit
+    final_title = ', '.join(parts)
+
+    # Fill remaining space with optional descriptors
+    for descriptor in descriptors:
+        if len(final_title + ", " + descriptor) <= 75:
+            final_title += ", " + descriptor
+
+    return final_title.strip()
 
 # UI Logic
 if product_url:
