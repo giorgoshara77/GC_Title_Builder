@@ -28,7 +28,7 @@ def extract_product_info(url):
             tags = []
             for a in tag_links:
                 tag_text = a.get_text(strip=True).lower().rstrip(',')
-                tag_text = tag_text.encode('latin1').decode('utf-8')  # Fix encoding
+                tag_text = tag_text.replace("â™¡", "heart").replace("™", "").strip() # Fix encoding
                 if tag_text and tag_text not in tags:
                     tags.append(tag_text)
 
