@@ -17,21 +17,25 @@ def extract_product_info(url):
         response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Get product title
+        # Extract product title
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
-        # Find the paragraph with all tags
-        tag_block = soup.find('p', class_='tags')
+        # Find the paragraph that contains "Tags:" anywhere in its text
+        tag_block = soup.find("p", class_="tags")
         tags = []
 
         if tag_block:
-            raw_tags = tag_block.get_text().replace("Tags:", "").strip()
-            tags = [t.strip().lower() for t in raw_tags.split(',') if t.strip()]
+            # Get full text of the tag block (ignoring <strong>)
+            raw_tags = tag_block.get_text(separator=" ", strip=True)
+            if "Tags:" in raw_tags:
+                raw_tags = raw_tags.split("Tags:")[-1]
+            tags = [t.strip().lower() for t in raw_tags.split(",") if t.strip()]
             st.write("DEBUG: Extracted Tags", tags)
 
         return title, tags
     except Exception as e:
+        st.write("DEBUG: Error extracting tags", str(e))
         return None, []
 
 
