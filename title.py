@@ -28,6 +28,7 @@ def extract_product_info(url):
         if tag_block:
             raw_tags = tag_block.get_text().replace("Tags:", "").strip()
             tags = [t.strip().lower() for t in raw_tags.split(',') if t.strip()]
+            st.write("DEBUG: Extracted Tags", tags)
 
         return title, tags
     except Exception as e:
