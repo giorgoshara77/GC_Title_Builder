@@ -122,12 +122,8 @@ def transform_title(raw_title, tags):
     metal_info_parts = [add_term(material), add_term(plating_str)]
     metal_info = ' '.join(filter(None, metal_info_parts))
 
-    # Priority #5: Optional Descriptors
+    # Priority #5: Optional Descriptors (excluding 2 Pcs for now)
     descriptors = []
-    if is_set:
-        added = add_term("2 Pcs")
-        if added:
-            descriptors.append(added)
     if "high polished" in raw_title_lower:
         added = add_term("High Polished")
         if added:
@@ -143,6 +139,10 @@ def transform_title(raw_title, tags):
     for descriptor in descriptors:
         if len(final_title + ", " + descriptor) <= 75:
             final_title += ", " + descriptor
+
+    # Add "2 Pcs" only if it's a set and there is space
+    if is_set and len(final_title + ", 2 Pcs") <= 75:
+        final_title += ", 2 Pcs"
 
     # Replace Cubic Zirconia with CZ only if over 75 characters
     if len(final_title) > 75 and "Cubic Zirconia" in final_title:
