@@ -16,7 +16,7 @@ def build_product_url(input_value):
     input_value = input_value.strip()
     if input_value.lower().startswith("https://alamodeonline.com/products/"):
         return input_value
-    elif re.match(r"^[A-Za-z]{2,3}\d{3,5}$", input_value):  # Matches SKU like TK3180, CM12345
+    elif re.match(r"^[A-Za-z]{2,3}\d{3,5}$", input_value):
         return f"https://alamodeonline.com/products/{input_value.lower()}"
     else:
         return None
@@ -46,7 +46,6 @@ def extract_product_info(url):
 
 def transform_title(raw_title, tags):
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
-
     used_terms = set()
 
     def add_term(term):
@@ -60,7 +59,7 @@ def transform_title(raw_title, tags):
     is_set = "ring sets" in tags or "set" in raw_title.lower()
     base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
-    # Priority #2: Style (partial matches allowed)
+    # Priority #2: Style
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     styles = []
     for tag in tags:
@@ -76,7 +75,6 @@ def transform_title(raw_title, tags):
     stone = "Clear Cubic Zirconia"
     if "simulated crystal" in raw_title.lower():
         stone = "Simulated Crystal"
-
     color_match = re.search(r"(champagne|blue|clear|pink|purple|green|black|white|red)", raw_title.lower())
     if color_match:
         stone = stone.replace("Clear", color_match.group().capitalize())
@@ -87,16 +85,29 @@ def transform_title(raw_title, tags):
         used_terms.add(shape_tag.lower())
         stone = f"{shape_tag} {stone}"
 
-    # Priority #4: Metal Info
-    plating = ""
-    if "IP Gold" in raw_title:
-        plating = "Gold-Plated"
-    elif "IP Rose Gold" in raw_title:
-        plating = "Rose Gold-Plated"
-    elif "IP Black" in raw_title:
-        plating = "Black-Plated"
-    elif "rhodium" in raw_title.lower() or "rhodium" in tags:
-        plating = "Rhodium-Plated"
+    # Priority #4: Metal Info (smart plating logic)
+    plating_keywords = {
+        "rose gold": "Rose Gold",
+        "gold": "Gold",
+        "black": "Black",
+        "brown": "Brown",
+        "light brown": "Brown",
+        "coffee": "Brown",
+        "light coffee": "Brown"
+    }
+
+    detected_platings = []
+    raw_title_lower = raw_title.lower()
+    for key, label in plating_keywords.items():
+        if f"ip {key}" in raw_title_lower or key in raw_title_lower:
+            if label not in detected_platings:
+                detected_platings.append(label)
+        if len(detected_platings) == 2:
+            break
+
+    plating_str = ""
+    if detected_platings:
+        plating_str = " & ".join(detected_platings) + "-Plated"
 
     material = ""
     if "stainless" in raw_title.lower():
@@ -104,7 +115,7 @@ def transform_title(raw_title, tags):
     elif "brass" in raw_title.lower() or "brass" in tags:
         material = "Brass"
 
-    metal_info_parts = [add_term(material), add_term(plating)]
+    metal_info_parts = [add_term(material), add_term(plating_str)]
     metal_info = ' '.join(filter(None, metal_info_parts))
 
     # Priority #5: Optional Descriptors
@@ -117,7 +128,6 @@ def transform_title(raw_title, tags):
         added = add_term("High Polished")
         if added:
             descriptors.append(added)
-
     gift = add_term("Gift")
     if gift:
         descriptors.append(gift)
@@ -130,11 +140,13 @@ def transform_title(raw_title, tags):
         if len(final_title + ", " + descriptor) <= 75:
             final_title += ", " + descriptor
 
+    # Replace Cubic Zirconia with CZ only if over 75 characters
+    if len(final_title) > 75 and "Cubic Zirconia" in final_title:
+        final_title = final_title.replace("Cubic Zirconia", "CZ")
+
     return final_title.strip()
 
-# ========================
-# UI Logic
-# ========================
+# ========== UI Logic ==========
 
 if "title" not in st.session_state:
     st.session_state.title = ""
