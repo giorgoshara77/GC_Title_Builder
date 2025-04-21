@@ -1,3 +1,17 @@
+import streamlit as st
+import re
+import requests
+from bs4 import BeautifulSoup
+
+st.set_page_config(page_title="GC Title Generator")
+st.title("🛍️ GC Title Generator")
+st.subheader("Create optimized and eye-catching eBay titles for your jewelry listings.")
+
+user_input = st.text_input("Paste AlamodeOnline product URL or enter SKU (e.g. TK3180)")
+
+def is_valid_alamode_url(url):
+    return url.startswith("https://alamodeonline.com/products/")
+
 def build_product_url(input_value):
     input_value = input_value.strip()
     if input_value.lower().startswith("https://alamodeonline.com/products/"):
