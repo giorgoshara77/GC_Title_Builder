@@ -7,31 +7,28 @@ st.set_page_config(page_title="GC Title Generator")
 st.title("🛍️ GC Title Generator")
 st.subheader("Create optimized and eye-catching eBay titles for your jewelry listings.")
 
-user_input = st.text_input("Paste AlamodeOnline product URL or enter SKU (e.g. TK3180 or 1w162)")
+user_input = st.text_input("Paste AlamodeOnline product URL or enter SKU (e.g. TK3180)")
 
-# ✅ Expanded to allow digit-first SKUs too
+def is_valid_alamode_url(url):
+    return url.startswith("https://alamodeonline.com/products/")
+
 def build_product_url(input_value):
     input_value = input_value.strip()
     if input_value.lower().startswith("https://alamodeonline.com/products/"):
         return input_value
-    elif re.match(r"^[a-zA-Z0-9]{2,10}$", input_value):  # Allows letters and digits
+    elif re.match(r"^[A-Za-z]{2,3}\d{3,5}$", input_value):
         return f"https://alamodeonline.com/products/{input_value.lower()}"
     else:
         return None
-
-def is_valid_alamode_url(url):
-    return url.startswith("https://alamodeonline.com/products/")
 
 def extract_product_info(url):
     try:
         response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Extract product title
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
-        # Extract tags from visible tag links
         tags = []
         tag_container = soup.find("div", class_="product-single__tags")
         if tag_container:
@@ -46,8 +43,9 @@ def extract_product_info(url):
         return None, []
 
 def transform_title(raw_title, tags):
-    title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
     raw_title_lower = raw_title.lower()
+    title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
+
     used_terms = set()
 
     def add_term(term):
@@ -57,11 +55,9 @@ def transform_title(raw_title, tags):
             return term
         return None
 
-    # Priority #1: Target Audience + Product Type
     is_set = "ring sets" in tags or "set" in raw_title_lower
     base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
-    # Priority #2: Style (partial matches allowed)
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     styles = []
     for tag in tags:
@@ -73,42 +69,81 @@ def transform_title(raw_title, tags):
                 break
     style_str = ' '.join(styles)
 
-    # Priority #3: Stone Info
-    if "simulated crystal" in raw_title_lower:
-        stone = "Simulated Crystal"
-    else:
-        stone = "Clear Cubic Zirconia" if "clear" in raw_title_lower or "clear" in tags else "Cubic Zirconia"
+    # ========== Stone Type, Color, and Shape ==========
+    stone_type_mappings = {
+        "top grade crystal": "Simulated Crystal",
+        "synthetic glass": "Synthetic Glass",
+        "cubic zirconia": "Cubic Zirconia",
+        "cz": "CZ",
+        "aaa cubic zirconia": "Cubic Zirconia",
+        "aaa cz": "CZ",
+        "precious stone conch": "Simulated Stone Conch",
+        "precious stone lapis": "Simulated Stone Lapis",
+        "precious stone pink crystal": "Simulated Stone PINK CRYSTAL",
+        "precious stone amethyst crystal": "Simulated Stone Amethyst Crystal",
+        "synthetic acrylic": "Synthetic Acrylic",
+        "synthetic imitation amber": "Synthetic Imitation Amber",
+        "ceramic": "Ceramic",
+        "synthetic synthetic glass": "Synthetic Glass",
+        "synthetic glass bead": "Simulated Glass Bead",
+        "semi-precious jade": "Simulated Jade",
+        "synthetic jade": "Simulated Jade",
+        "synthetic cat eye": "Simulated Cat Eye",
+        "semi-precious marcasite": "Simulated Marcasite",
+        "synthetic spinel": "Simulated Spinel",
+        "synthetic turquoise": "Simulated Turquoise",
+        "synthetic pearl": "Simulated Pearl",
+        "synthetic synthetic stone": "Synthetic Stone"
+    }
 
-    color_match = re.search(r"(champagne|blue|clear|pink|purple|green|black|white|red)", raw_title_lower)
-    if color_match and "clear" in stone.lower():
-        stone = stone.replace("Clear", color_match.group().capitalize())
+    stone_color_mappings = {
+        "jet": "Black", "light gray": "Gray", "gray": "Gray", "white": "White", "clear": "Clear",
+        "siam": "Red", "ruby": "Ruby-Colored", "rose": "Rose", "garnet": "Garnet-Colored",
+        "light rose": "Rose", "orange": "Orange", "champagne": "Champagne", "multi color": "Multicolor",
+        "citrine yellow": "Yellow", "topaz": "Topaz-Colored", "citrine": "Citrine-Colored",
+        "light gold": "Light Gold", "emerald": "Emerald-Colored", "blue zircon": "Blue",
+        "peridot": "Peridot Colored", "olivine color": "Olive Green", "apple green color": "Apple Green",
+        "sapphire": "Sapphire-Colored", "montana": "Montana", "sea blue": "Sea Blue", "aquamarine": "Aquamarine",
+        "london blue": "Blue", "tanzanite": "Tanzanite-Colored", "amethyst": "Amethyst-Colored",
+        "light amethyst": "Amethyst-Colored", "brown": "Brown", "smoked quartz": "Smoky Brown",
+        "coffee": "Coffee", "light coffee": "Coffee"
+    }
 
-    shape_tag = next((tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]
-                      and tag.capitalize().lower() not in used_terms), None)
+    shape_tag = next((tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square", "triangle", "oblong", "stellar"]
+                      and tag.lower() not in used_terms), None)
+
+    # Detect stone type from title
+    detected_stone = next((stone_type_mappings[stype] for stype in stone_type_mappings if stype in raw_title_lower), None)
+    stone = detected_stone or "Cubic Zirconia"
     if shape_tag:
-        used_terms.add(shape_tag.lower())
         stone = f"{shape_tag} {stone}"
 
-    # Priority #4: Metal Info with plating pair logic
-    plating_terms = []
-    if "ip rose gold" in raw_title:
-        plating_terms.append("Rose Gold")
-    if "ip gold" in raw_title:
-        plating_terms.append("Gold")
-    if "ip black" in raw_title:
-        plating_terms.append("Black")
-    if "ip brown" in raw_title or "ip coffee" in raw_title or "ip light brown" in raw_title or "ip light coffee" in raw_title:
-        plating_terms.append("Brown")
-    if "rhodium" in raw_title_lower or "rhodium" in tags:
-        plating_terms.append("Rhodium")
+    for color_key, replacement in stone_color_mappings.items():
+        if f"in {color_key}" in raw_title_lower or f", {color_key}" in raw_title_lower:
+            stone = stone.replace("Clear", replacement)
+            break
+    if "clear" not in raw_title_lower and "clear" not in tags:
+        stone = stone.replace("Clear ", "")
 
-    plating_str = ""
-    if plating_terms:
-        if len(plating_terms) == 1:
-            plating_str = f"{plating_terms[0]}-Plated"
-        else:
-            combo = " & ".join(plating_terms[:2])
-            plating_str = f"{combo}-Plated"
+    # ========== Plating & Material ==========
+    plating_types = []
+    if "ip rose gold" in raw_title:
+        plating_types.append("Rose Gold")
+    if "ip gold" in raw_title:
+        plating_types.append("Gold")
+    if "ip black" in raw_title:
+        plating_types.append("Black")
+    if "ip brown" in raw_title or "ip coffee" in raw_title:
+        plating_types.append("Brown")
+    if "rhodium" in raw_title_lower or "rhodium" in tags:
+        plating_types.append("Rhodium")
+
+    if len(plating_types) == 2:
+        plating = f"{plating_types[0]} & {plating_types[1]}-Plated"
+    elif len(plating_types) == 1:
+        plating = f"{plating_types[0]}-Plated"
+    else:
+        plating = ""
 
     material = ""
     if "stainless" in raw_title_lower:
@@ -116,10 +151,10 @@ def transform_title(raw_title, tags):
     elif "brass" in raw_title_lower or "brass" in tags:
         material = "Brass"
 
-    metal_info_parts = [add_term(material), add_term(plating_str)]
+    metal_info_parts = [add_term(material), add_term(plating)]
     metal_info = ' '.join(filter(None, metal_info_parts))
 
-    # Priority #5: Optional Descriptors (excluding "2 Pcs" for now)
+    # Optional Descriptors
     descriptors = []
     if "high polished" in raw_title_lower:
         added = add_term("High Polished")
@@ -130,22 +165,20 @@ def transform_title(raw_title, tags):
     if gift:
         descriptors.append(gift)
 
-    # Build base title
+    # Title Assembly
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
-    # Add other descriptors if space allows
     for descriptor in descriptors:
-        if len(final_title + ", " + descriptor) <= 75:
+        if len(final_title + ", " + descriptor) <= 80:
             final_title += ", " + descriptor
 
-    # ✅ Add "2 Pcs" at the end ONLY if it's a set, not already used, and space allows
-    if is_set and "2 pcs" not in used_terms and len(final_title + ", 2 Pcs") <= 75:
-        final_title += ", 2 Pcs"
-        used_terms.add("2 pcs")
+    if is_set and "2 pcs" not in used_terms:
+        if len(final_title + ", 2 Pcs") <= 80:
+            final_title += ", 2 Pcs"
+            used_terms.add("2 pcs")
 
-    # ✅ Replace Cubic Zirconia with CZ if over 75 characters
-    if len(final_title) > 75 and "Cubic Zirconia" in final_title:
+    if len(final_title) > 80 and "Cubic Zirconia" in final_title:
         final_title = final_title.replace("Cubic Zirconia", "CZ")
 
     return final_title.strip()
@@ -170,7 +203,6 @@ if st.button("🔍 Load Product Info") and product_url:
     else:
         st.error("❌ Invalid product URL or SKU format.")
 
-# Show product info if loaded
 if st.session_state.title and st.session_state.tags:
     st.markdown("### 📝 Extracted Product Info")
     st.write(f"**Title:** {st.session_state.title}")
@@ -181,4 +213,5 @@ if st.session_state.title and st.session_state.tags:
         final_title = transform_title(st.session_state.title, st.session_state.tags)
         st.markdown("### 🛒 Your eBay Title")
         st.text_area("Generated Title", final_title, height=100)
-        st.markdown(f"**Character Count:** `{len(final_title)}/75`")
+        st.markdown(f"**Character Count:** `{len(final_title)}/80`")
+
