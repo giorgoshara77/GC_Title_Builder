@@ -9,6 +9,7 @@ st.subheader("Create optimized and eye-catching eBay titles for your jewelry lis
 
 user_input = st.text_input("Paste AlamodeOnline product URL or enter SKU (e.g. TK3180)")
 
+# Validation
 def is_valid_alamode_url(url):
     return url.startswith("https://alamodeonline.com/products/")
 
@@ -16,11 +17,12 @@ def build_product_url(input_value):
     input_value = input_value.strip()
     if input_value.lower().startswith("https://alamodeonline.com/products/"):
         return input_value
-    elif re.match(r"^[a-zA-Z0-9]+$", input_value):  # Accepts alphanumeric SKU
+    elif re.match(r"^[A-Za-z]{2,4}\d{3,6}[a-z]{0,3}$", input_value):  # Extended pattern
         return f"https://alamodeonline.com/products/{input_value.lower()}"
     else:
         return None
 
+# Data extraction
 def extract_product_info(url):
     try:
         response = requests.get(url, timeout=10)
@@ -35,12 +37,13 @@ def extract_product_info(url):
             tag_links = tag_container.find_all("a")
             tags = [a.get_text(strip=True).lower().rstrip(',') for a in tag_links if a.get_text(strip=True)]
 
+        st.write("DEBUG: Extracted Tags", tags)
         return title, tags
-
     except Exception as e:
         st.write("DEBUG: Error extracting tags", str(e))
         return None, []
 
+# Title transformation
 def transform_title(raw_title, tags):
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
     raw_title_lower = raw_title.lower()
@@ -53,10 +56,17 @@ def transform_title(raw_title, tags):
             return term
         return None
 
-    is_set = "ring sets" in tags or "set" in raw_title_lower
-    base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
+    # Audience
+    gender = "Women's"
+    if "men" in tags:
+        gender = "Men's"
+    elif "women" in tags:
+        gender = "Women's"
 
-    # Styles
+    is_set = "ring sets" in tags or "set" in raw_title.lower()
+    base = add_term(f"{gender} Ring Set") if is_set else add_term(f"{gender} Ring")
+
+    # Style
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     styles = []
     for tag in tags:
@@ -68,63 +78,40 @@ def transform_title(raw_title, tags):
                 break
     style_str = ' '.join(styles)
 
-    # Stone Info: shape + color + type
-    stone_type_map = {
-        "top grade crystal": "Simulated Crystal",
-        "synthetic glass": "Synthetic Glass",
-        "cz": "CZ",
-        "aaa cz": "CZ",
-        "aaa cubic zirconia": "Cubic Zirconia",
-        "cubic zirconia": "Cubic Zirconia",
-        "precious stone conch": "Simulated Stone Conch",
-        "precious stone lapis": "Simulated Stone Lapis",
-        "precious stone pink crystal": "Simulated Stone PINK CRYSTAL",
-        "precious stone amethyst crystal": "Simulated Stone Amethyst Crystal",
-        "synthetic acrylic": "Synthetic Acrylic",
-        "synthetic imitation amber": "Synthetic Imitation Amber",
-        "ceramic": "Ceramic",
-        "synthetic synthetic glass": "Synthetic Glass",
-        "synthetic glass bead": "Simulated Glass Bead",
-        "semi-precious jade": "Simulated Jade",
-        "synthetic jade": "Simulated Jade",
-        "synthetic cat eye": "Simulated Cat Eye",
-        "semi-precious marcasite": "Simulated Marcasite",
-        "synthetic spinel": "Simulated Spinel",
-        "synthetic turquoise": "Simulated Turquoise",
-        "synthetic pearl": "Simulated Pearl",
-        "synthetic synthetic stone": "Synthetic Stone"
-    }
+    # Stone logic (simplified)
+    stone = "Clear Cubic Zirconia"
+    if "simulated crystal" in raw_title_lower:
+        stone = "Simulated Crystal"
+    elif "aaa cz" in raw_title_lower:
+        stone = "CZ"
+    elif "aaa cubic zirconia" in raw_title_lower:
+        stone = "Cubic Zirconia"
 
-    stone_color_map = {
-        "jet": "Black", "black": "Black", "light gray": "Gray", "gray": "Gray", "white": "White", "clear": "Clear",
-        "siam": "Red", "ruby": "Ruby-Colored", "rose": "Rose", "garnet": "Garnet-Colored", "light rose": "Rose",
-        "orange": "Orange", "champagne": "Champagne", "multi color": "Multicolor", "citrine yellow": "Yellow",
-        "topaz": "Topaz-Colored", "citrine": "Citrine-Colored", "light gold": "Light Gold", "emerald": "Emerald-Colored",
-        "blue zircon": "Blue", "peridot": "Peridot Colored", "olivine color": "Olive Green",
-        "apple green color": "Apple Green", "sapphire": "Sapphire-Colored", "montana": "Montana",
-        "sea blue": "Sea Blue", "aquamarine": "Aquamarine", "london blue": "Blue", "tanzanite": "Tanzanite-Colored",
-        "amethyst": "Amethyst-Colored", "light amethyst": "Amethyst-Colored", "brown": "Brown",
-        "smoked quartz": "Smoky Brown", "coffee": "Coffee", "light coffee": "Coffee", "yellow": "Yellow", "red": "Red"
-    }
+    color_match = re.search(r" in (\w+)", raw_title, re.IGNORECASE)
+    if color_match:
+        color = color_match.group(1).capitalize()
+        stone = stone.replace("Clear", color)
 
-    stone_shape_list = ["round", "heart", "pear", "square", "triangle", "oblong", "stellar"]
+    shape_tags = ["round", "heart", "pear", "square", "triangle", "oblong", "stellar"]
+    shape = [tag.capitalize() for tag in tags if tag in shape_tags]
+    if shape:
+        stone = f"{' '.join(shape)} {stone}"
 
-    stone_type = next((stone_type_map[k] for k in stone_type_map if k in raw_title_lower), "")
-    stone_color = next((stone_color_map[k] for k in stone_color_map if f"in {k}" in raw_title_lower), "")
-    stone_shape = next((tag.capitalize() for tag in tags if tag in stone_shape_list), "")
+    # Metal info
+    plating = ""
+    platings_found = []
+    if "IP Gold" in raw_title:
+        platings_found.append("Gold-Plated")
+    if "IP Rose Gold" in raw_title:
+        platings_found.append("Rose Gold-Plated")
+    if "IP Black" in raw_title:
+        platings_found.append("Black-Plated")
+    if "IP Brown" in raw_title or "IP Coffee" in raw_title:
+        platings_found.append("Brown-Plated")
+    if "rhodium" in raw_title_lower or "rhodium" in tags:
+        platings_found.append("Rhodium-Plated")
 
-    stone_parts = list(filter(None, [stone_shape, stone_color, stone_type]))
-    stone = ' '.join(stone_parts) if stone_parts else ""
-
-    # Metal Info
-    plating_map = {
-        "ip gold": "Gold-Plated", "ip rose gold": "Rose Gold-Plated",
-        "ip black": "Black-Plated", "ip brown": "Brown-Plated", "ip coffee": "Brown-Plated",
-        "ip light brown": "Brown-Plated", "ip light coffee": "Brown-Plated"
-    }
-
-    platings_found = [plating_map[k] for k in plating_map if re.search(k.replace(" ", r"\s*") + r"(\(|\s|$)", raw_title_lower)]
-    plating = " & ".join(sorted(set(platings_found))) if platings_found else ""
+    plating = " & ".join(platings_found[:2])
 
     material = ""
     if "stainless" in raw_title_lower:
@@ -132,7 +119,7 @@ def transform_title(raw_title, tags):
     elif "brass" in raw_title_lower or "brass" in tags:
         material = "Brass"
 
-    metal_info = ' '.join(filter(None, [add_term(material), add_term(plating)])).strip()
+    metal_info = " ".join(filter(None, [add_term(material), add_term(plating)]))
 
     # Descriptors
     descriptors = []
@@ -140,11 +127,7 @@ def transform_title(raw_title, tags):
         added = add_term("High Polished")
         if added:
             descriptors.append(added)
-    gift = add_term("Gift")
-    if gift:
-        descriptors.append(gift)
 
-    # Build title
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
@@ -157,14 +140,12 @@ def transform_title(raw_title, tags):
             final_title += ", 2 Pcs"
             used_terms.add("2 pcs")
 
-    # Replace Cubic Zirconia with CZ if over 80
     if len(final_title) > 80 and "Cubic Zirconia" in final_title:
         final_title = final_title.replace("Cubic Zirconia", "CZ")
 
     return final_title.strip()
 
-# ========== UI Logic ==========
-
+# UI Logic
 if "title" not in st.session_state:
     st.session_state.title = ""
 if "tags" not in st.session_state:
@@ -185,6 +166,7 @@ if st.session_state.title and st.session_state.tags:
     st.markdown("### 📝 Extracted Product Info")
     st.write(f"**Title:** {st.session_state.title}")
     st.write(f"**Tags:** {', '.join(st.session_state.tags)}")
+    st.write("DEBUG: Extracted Tags", st.session_state.tags)
 
     if st.button("✨ Generate Title"):
         final_title = transform_title(st.session_state.title, st.session_state.tags)
