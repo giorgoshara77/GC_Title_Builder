@@ -72,10 +72,14 @@ def transform_title(raw_title, tags):
     style_str = ' '.join(styles)
 
     # Priority #3: Stone Info
-    stone = "Clear Cubic Zirconia"
     if "simulated crystal" in raw_title.lower():
         stone = "Simulated Crystal"
-    color_match = re.search(r"(champagne|blue|clear|pink|purple|green|black|white|red)", raw_title.lower())
+    elif "clear" in raw_title.lower() or "clear" in tags:
+        stone = "Clear Cubic Zirconia"
+    else:
+        stone = "Cubic Zirconia"
+
+    color_match = re.search(r"(champagne|blue|pink|purple|green|black|white|red)", raw_title.lower())
     if color_match:
         stone = stone.replace("Clear", color_match.group().capitalize())
 
@@ -110,9 +114,9 @@ def transform_title(raw_title, tags):
         plating_str = " & ".join(detected_platings) + "-Plated"
 
     material = ""
-    if "stainless" in raw_title.lower():
+    if "stainless" in raw_title_lower:
         material = "Stainless Steel"
-    elif "brass" in raw_title.lower() or "brass" in tags:
+    elif "brass" in raw_title_lower or "brass" in tags:
         material = "Brass"
 
     metal_info_parts = [add_term(material), add_term(plating_str)]
@@ -124,7 +128,7 @@ def transform_title(raw_title, tags):
         added = add_term("2 Pcs")
         if added:
             descriptors.append(added)
-    if "high polished" in raw_title.lower():
+    if "high polished" in raw_title_lower:
         added = add_term("High Polished")
         if added:
             descriptors.append(added)
