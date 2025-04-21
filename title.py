@@ -7,19 +7,15 @@ st.set_page_config(page_title="GC Title Generator")
 st.title("🛍️ GC Title Generator")
 st.subheader("Create optimized and eye-catching eBay titles for your jewelry listings.")
 
-user_input = st.text_input("Paste AlamodeOnline product URL or enter SKU (e.g. TK3180)")
+user_input = st.text_input("Paste your AlamodeOnline product URL or SKU")
 
 def is_valid_alamode_url(url):
-    return url.startswith("https://alamodeonline.com/products/")
+    return "alamodeonline.com/products/" in url
 
-def build_product_url(input_value):
-    input_value = input_value.strip()
-    if input_value.lower().startswith("https://alamodeonline.com/products/"):
-        return input_value
-    elif re.match(r"^[A-Za-z]{2,3}\d{3,5}$", input_value):
-        return f"https://alamodeonline.com/products/{input_value.lower()}"
-    else:
-        return None
+def build_product_url(input_text):
+    if input_text.startswith("http"):
+        return input_text
+    return f"https://alamodeonline.com/products/{input_text.strip()}"
 
 def extract_product_info(url):
     try:
@@ -30,14 +26,13 @@ def extract_product_info(url):
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
-        # Extract tags from visible tag links
+        # Extract tags
         tags = []
         tag_container = soup.find("div", class_="product-single__tags")
         if tag_container:
             tag_links = tag_container.find_all("a")
-            tags = [a.get_text(strip=True).lower().rstrip(',') for a in tag_links if a.get_text(strip=True)]
+            tags = [a.get_text(strip=True).replace("â™¡", "heart").replace("™", "").strip().lower().rstrip(',') for a in tag_links if a.get_text(strip=True)]
 
-        st.write("DEBUG: Extracted Tags", tags)
         return title, tags
 
     except Exception as e:
@@ -45,18 +40,19 @@ def extract_product_info(url):
         return None, []
 
 def transform_title(raw_title, tags):
-    title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
+    title_clean = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
+    raw_title_lower = raw_title.lower()
     used_terms = set()
 
     def add_term(term):
-        lower_term = term.lower()
-        if lower_term not in used_terms:
-            used_terms.add(lower_term)
+        lower = term.lower()
+        if lower not in used_terms:
+            used_terms.add(lower)
             return term
         return None
 
     # Priority #1: Target Audience + Product Type
-    is_set = "ring sets" in tags or "set" in raw_title.lower()
+    is_set = "ring sets" in tags or "set" in raw_title_lower
     base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
     # Priority #2: Style
@@ -72,16 +68,12 @@ def transform_title(raw_title, tags):
     style_str = ' '.join(styles)
 
     # Priority #3: Stone Info
-    if "simulated crystal" in raw_title.lower():
+    stone = "Cubic Zirconia"
+    if "simulated crystal" in raw_title_lower:
         stone = "Simulated Crystal"
-    elif "clear" in raw_title.lower() or "clear" in tags:
-        stone = "Clear Cubic Zirconia"
-    else:
-        stone = "Cubic Zirconia"
 
-    color_match = re.search(r"(champagne|blue|pink|purple|green|black|white|red)", raw_title.lower())
-    if color_match:
-        stone = stone.replace("Clear", color_match.group().capitalize())
+    if "clear" in raw_title_lower or "clear" in tags:
+        stone = "Clear " + stone
 
     shape_tag = next((tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]
                       and tag.capitalize().lower() not in used_terms), None)
@@ -89,29 +81,27 @@ def transform_title(raw_title, tags):
         used_terms.add(shape_tag.lower())
         stone = f"{shape_tag} {stone}"
 
-    # Priority #4: Metal Info (smart plating logic)
-    plating_keywords = {
-        "rose gold": "Rose Gold",
-        "gold": "Gold",
-        "black": "Black",
-        "brown": "Brown",
-        "light brown": "Brown",
-        "coffee": "Brown",
-        "light coffee": "Brown"
+    # Priority #4: Metal Info
+    plating_types = {
+        "ip gold": "Gold-Plated",
+        "ip rose gold": "Rose Gold-Plated",
+        "ip black": "Black-Plated",
+        "ip brown": "Brown-Plated",
+        "ip coffee": "Brown-Plated",
+        "ip light brown": "Brown-Plated",
+        "ip light coffee": "Brown-Plated"
     }
 
     detected_platings = []
-    raw_title_lower = raw_title.lower()
-    for key, label in plating_keywords.items():
-        if f"ip {key}" in raw_title_lower or key in raw_title_lower:
-            if label not in detected_platings:
-                detected_platings.append(label)
-        if len(detected_platings) == 2:
-            break
+    for key, value in plating_types.items():
+        if key in raw_title_lower and value not in detected_platings:
+            detected_platings.append(value)
 
-    plating_str = ""
-    if detected_platings:
-        plating_str = " & ".join(detected_platings) + "-Plated"
+    plating = ""
+    if len(detected_platings) >= 2:
+        plating = ' & '.join([detected_platings[0].replace("-Plated", ""), detected_platings[1]])
+    elif detected_platings:
+        plating = detected_platings[0]
 
     material = ""
     if "stainless" in raw_title_lower:
@@ -119,7 +109,7 @@ def transform_title(raw_title, tags):
     elif "brass" in raw_title_lower or "brass" in tags:
         material = "Brass"
 
-    metal_info_parts = [add_term(material), add_term(plating_str)]
+    metal_info_parts = [add_term(material), add_term(plating)]
     metal_info = ' '.join(filter(None, metal_info_parts))
 
     # Priority #5: Optional Descriptors (excluding "2 Pcs" for now)
@@ -128,6 +118,7 @@ def transform_title(raw_title, tags):
         added = add_term("High Polished")
         if added:
             descriptors.append(added)
+
     gift = add_term("Gift")
     if gift:
         descriptors.append(gift)
@@ -141,12 +132,7 @@ def transform_title(raw_title, tags):
         if len(final_title + ", " + descriptor) <= 75:
             final_title += ", " + descriptor
 
-    # ✅ Add "2 Pcs" at the end ONLY if it's a set, not already used, and space allows
-
-    st.write("DEBUG: Length before 2 Pcs:", len(final_title))
-    st.write("DEBUG: Is set:", is_set)
-    st.write("DEBUG: Used terms:", used_terms)
-    
+    # ✅ Add "2 Pcs" if it's a set, not already used, and space allows
     if is_set and "2 pcs" not in used_terms:
         if len(final_title + ", 2 Pcs") <= 75:
             final_title += ", 2 Pcs"
