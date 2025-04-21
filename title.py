@@ -7,14 +7,14 @@ st.set_page_config(page_title="GC Title Generator")
 st.title("🛍️ GC Title Generator")
 st.subheader("Create optimized and eye-catching eBay titles for your jewelry listings.")
 
-user_input = st.text_input("Paste AlamodeOnline product URL or enter SKU (e.g. TK3180)")
+user_input = st.text_input("Paste AlamodeOnline product URL or enter SKU (e.g. TK3180 or 1w162)")
 
-# ✅ URL Builder: supports URL or SKU (even tricky ones like TK1869lj, 1w004, etc.)
+# ✅ Expanded to allow digit-first SKUs too
 def build_product_url(input_value):
     input_value = input_value.strip()
     if input_value.lower().startswith("https://alamodeonline.com/products/"):
         return input_value
-    elif re.match(r"^[A-Za-z]{1,3}\d{2,5}[A-Za-z0-9]*$", input_value):  # Updated pattern
+    elif re.match(r"^[a-zA-Z0-9]{2,10}$", input_value):  # Allows letters and digits
         return f"https://alamodeonline.com/products/{input_value.lower()}"
     else:
         return None
@@ -61,7 +61,7 @@ def transform_title(raw_title, tags):
     is_set = "ring sets" in tags or "set" in raw_title_lower
     base = add_term("Women's Ring Set") if is_set else add_term("Women's Ring")
 
-    # Priority #2: Style (from tags)
+    # Priority #2: Style (partial matches allowed)
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     styles = []
     for tag in tags:
@@ -74,17 +74,14 @@ def transform_title(raw_title, tags):
     style_str = ' '.join(styles)
 
     # Priority #3: Stone Info
-    stone = "Clear Cubic Zirconia"
     if "simulated crystal" in raw_title_lower:
         stone = "Simulated Crystal"
+    else:
+        stone = "Clear Cubic Zirconia" if "clear" in raw_title_lower or "clear" in tags else "Cubic Zirconia"
 
-    if "clear" not in raw_title_lower and "clear" not in tags:
-        stone = stone.replace("Clear ", "")  # remove "Clear" if not present in title/tags
-
-    color_match = re.search(r"(champagne|blue|pink|purple|green|black|white|red)", raw_title_lower)
-    if color_match:
-        color = color_match.group().capitalize()
-        stone = stone.replace("Clear", color)
+    color_match = re.search(r"(champagne|blue|clear|pink|purple|green|black|white|red)", raw_title_lower)
+    if color_match and "clear" in stone.lower():
+        stone = stone.replace("Clear", color_match.group().capitalize())
 
     shape_tag = next((tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"]
                       and tag.capitalize().lower() not in used_terms), None)
@@ -92,21 +89,26 @@ def transform_title(raw_title, tags):
         used_terms.add(shape_tag.lower())
         stone = f"{shape_tag} {stone}"
 
-    # Priority #4: Metal Info (supports dual plating)
-    platings = []
-    if "IP Gold" in raw_title:
-        platings.append("Gold-Plated")
-    if "IP Rose Gold" in raw_title:
-        platings.append("Rose Gold-Plated")
-    if "IP Black" in raw_title:
-        platings.append("Black-Plated")
-    if any(x in raw_title for x in ["IP Brown", "IP Coffee"]):
-        platings.append("Brown-Plated")
+    # Priority #4: Metal Info with plating pair logic
+    plating_terms = []
+    if "ip rose gold" in raw_title:
+        plating_terms.append("Rose Gold")
+    if "ip gold" in raw_title:
+        plating_terms.append("Gold")
+    if "ip black" in raw_title:
+        plating_terms.append("Black")
+    if "ip brown" in raw_title or "ip coffee" in raw_title or "ip light brown" in raw_title or "ip light coffee" in raw_title:
+        plating_terms.append("Brown")
     if "rhodium" in raw_title_lower or "rhodium" in tags:
-        platings.append("Rhodium-Plated")
+        plating_terms.append("Rhodium")
 
-    unique_platings = list(dict.fromkeys(platings))[:2]  # Max 2 unique, preserve order
-    plating_str = " & ".join(unique_platings)
+    plating_str = ""
+    if plating_terms:
+        if len(plating_terms) == 1:
+            plating_str = f"{plating_terms[0]}-Plated"
+        else:
+            combo = " & ".join(plating_terms[:2])
+            plating_str = f"{combo}-Plated"
 
     material = ""
     if "stainless" in raw_title_lower:
@@ -117,12 +119,13 @@ def transform_title(raw_title, tags):
     metal_info_parts = [add_term(material), add_term(plating_str)]
     metal_info = ' '.join(filter(None, metal_info_parts))
 
-    # Priority #5: Optional Descriptors
+    # Priority #5: Optional Descriptors (excluding "2 Pcs" for now)
     descriptors = []
     if "high polished" in raw_title_lower:
         added = add_term("High Polished")
         if added:
             descriptors.append(added)
+
     gift = add_term("Gift")
     if gift:
         descriptors.append(gift)
@@ -131,17 +134,17 @@ def transform_title(raw_title, tags):
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
+    # Add other descriptors if space allows
     for descriptor in descriptors:
         if len(final_title + ", " + descriptor) <= 75:
             final_title += ", " + descriptor
 
-    # ✅ Add "2 Pcs" at the end ONLY if it's a set and space allows
-    if is_set and "2 pcs" not in used_terms:
-        if len(final_title + ", 2 Pcs") <= 75:
-            final_title += ", 2 Pcs"
-            used_terms.add("2 pcs")
+    # ✅ Add "2 Pcs" at the end ONLY if it's a set, not already used, and space allows
+    if is_set and "2 pcs" not in used_terms and len(final_title + ", 2 Pcs") <= 75:
+        final_title += ", 2 Pcs"
+        used_terms.add("2 pcs")
 
-    # ✅ Replace Cubic Zirconia with CZ if needed
+    # ✅ Replace Cubic Zirconia with CZ if over 75 characters
     if len(final_title) > 75 and "Cubic Zirconia" in final_title:
         final_title = final_title.replace("Cubic Zirconia", "CZ")
 
