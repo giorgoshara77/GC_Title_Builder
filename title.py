@@ -142,6 +142,11 @@ def transform_title(raw_title, tags):
             final_title += ", " + descriptor
 
     # ✅ Add "2 Pcs" at the end ONLY if it's a set, not already used, and space allows
+
+    st.write("DEBUG: Length before 2 Pcs:", len(final_title))
+    st.write("DEBUG: Is set:", is_set)
+    st.write("DEBUG: Used terms:", used_terms)
+    
     if is_set and "2 pcs" not in used_terms:
         if len(final_title + ", 2 Pcs") <= 75:
             final_title += ", 2 Pcs"
