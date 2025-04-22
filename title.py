@@ -75,7 +75,7 @@ def transform_title(raw_title, tags):
                 break
     style_str = ' '.join(styles)
 
-    # === STONE DETECTION LOGIC ===
+    # === STONE TYPE DETECTION ===
     stone_type_substitutions = {
         "top grade crystal": "Simulated Crystal",
         "synthetic glass": "Synthetic Glass",
@@ -83,6 +83,7 @@ def transform_title(raw_title, tags):
         "aaa cubic zirconia": "Cubic Zirconia",
         "aaa cz": "CZ",
         "cz": "CZ",
+        "epoxy": "Epoxy",
         "precious stone conch": "Simulated Stone Conch",
         "precious stone lapis": "Simulated Stone Lapis",
         "precious stone pink crystal": "Simulated Stone PINK CRYSTAL",
@@ -102,21 +103,16 @@ def transform_title(raw_title, tags):
         "synthetic synthetic stone": "Synthetic Stone"
     }
 
-    # Check for "No Stone" or "Epoxy"
+    # Detect stone
     stone = ""
     if "no stone" in raw_title_lower or "no stone" in tags:
         stone = ""
-    elif "epoxy" in raw_title_lower or "epoxy" in tags:
-        stone = "Epoxy"
     else:
-        found_type = None
         for raw_type, formatted in stone_type_substitutions.items():
             if raw_type in raw_title_lower:
-                found_type = formatted
+                stone = formatted
                 break
-        if found_type:
-            stone = found_type
-        elif "cz" in raw_title_lower:
+        if not stone and "cz" in raw_title_lower:
             stone = "Cubic Zirconia"
 
     # Metal Info (detect multiple platings)
@@ -173,6 +169,7 @@ def transform_title(raw_title, tags):
         final_title += ", 2 Pcs"
         used_terms.add("2 pcs")
 
+    # Replace CZ if character count exceeds 80
     if len(final_title) > 80 and "Cubic Zirconia" in final_title:
         final_title = final_title.replace("Cubic Zirconia", "CZ")
 
@@ -209,4 +206,3 @@ if st.session_state.title and st.session_state.tags:
         st.markdown("### 🛒 Your eBay Title")
         st.text_area("Generated Title", final_title, height=100)
         st.markdown(f"**Character Count:** `{len(final_title)}/80`")
-
