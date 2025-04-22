@@ -64,15 +64,24 @@ def transform_title(raw_title, tags):
         base = add_term("Ring")
 
     # Style
+    import unicodedata
+
+    def normalize(text):
+        return unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode().lower()
+
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
+    normalized_style_map = {normalize(term): term.capitalize() for term in style_terms}
+
     styles = []
     for tag in tags:
-        for style in style_terms:
-            if style in tag:
-                styled = add_term(style.capitalize())
-                if styled:
-                    styles.append(styled)
+        tag_normalized = normalize(tag)
+        for norm_term, display_term in normalized_style_map.items():
+            if norm_term in tag_normalized:
+                added = add_term(display_term)
+                if added:
+                    styles.append(added)
                 break
+
     style_str = ' '.join(styles)
 
     # === STONE TYPE DETECTION ===
