@@ -105,11 +105,13 @@ def transform_title(raw_title, tags):
 
     # Detect stone
     stone = ""
-    if "no stone" in raw_title_lower or "no stone" in tags:
+    normalized_tags = [tag.strip().lower() for tag in tags]
+
+    if "no stone" in raw_title_lower or "no stone" in normalized_tags:
         stone = ""
     else:
         for raw_type, formatted in stone_type_substitutions.items():
-            if raw_type in raw_title_lower or any(raw_type in tag for tag in tags):
+            if raw_type in raw_title_lower or raw_type in normalized_tags:
                 stone = formatted
                 break
         if not stone and "cz" in raw_title_lower:
