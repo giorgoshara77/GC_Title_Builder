@@ -107,13 +107,15 @@ def transform_title(raw_title, tags):
     stone = ""
     normalized_tags = [tag.strip().lower() for tag in tags]
 
-    if "no stone" in raw_title_lower or "no stone" in normalized_tags:
+    if "epoxy" in raw_title_lower or "epoxy" in normalized_tags:
+        stone = "Epoxy"
+    elif "no stone" in raw_title_lower or "no stone" in normalized_tags:
         stone = ""
     else:
         for raw_type, formatted in stone_type_substitutions.items():
-            if raw_type in raw_title_lower or raw_type in normalized_tags:
-                stone = formatted
-                break
+          if raw_type in raw_title_lower or raw_type in normalized_tags:
+              stone = formatted
+              break
         if not stone and "cz" in raw_title_lower:
             stone = "Cubic Zirconia"
 
