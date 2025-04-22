@@ -149,12 +149,28 @@ def transform_title(raw_title, tags):
 
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
-    for descriptor in descriptors:
-        if len(final_title + ", " + descriptor) <= 80:
-            final_title += ", " + descriptor
+
+    # Optional: Stone Shape
+    stone_shape = ""
+    shape_priority = ["round", "heart", "square", "pear", "triangle", "oblong", "stellar"]
+    for shape in shape_priority:
+        if shape in normalized_tags:
+            stone_shape = shape.capitalize()
+            break
+
+    # Priority: 1) 2 Pcs, 2) Stone Shape, 3) High Polished
     if is_set and "2 pcs" not in used_terms and len(final_title + ", 2 Pcs") <= 80:
         final_title += ", 2 Pcs"
         used_terms.add("2 pcs")
+
+    if stone_shape and len(final_title + ", " + stone_shape) <= 80:
+        final_title += ", " + stone_shape
+
+    for descriptor in descriptors:
+        if descriptor.lower() == "high polished" and len(final_title + ", " + descriptor) <= 80:
+            final_title += ", " + descriptor
+            break
+
     if len(final_title) > 80 and "Cubic Zirconia" in final_title:
         final_title = final_title.replace("Cubic Zirconia", "CZ")
 
