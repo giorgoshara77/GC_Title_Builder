@@ -56,14 +56,30 @@ def transform_title(raw_title, tags):
     def normalize(text):
         return unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode().lower()
 
-    # Target Audience
-    is_set = "ring sets" in tags or "set" in raw_title_lower
-    if "men" in tags:
-        base = add_term("Men's Ring")
-    elif "women" in tags:
-        base = add_term("Women's Ring Set" if is_set else "Women's Ring")
+    normalized_tags = [tag.lower() for tag in tags]
+    gender = "Women" if "women" in normalized_tags else "Men" if "men" in normalized_tags else ""
+    is_set = "ring sets" in normalized_tags or "set" in raw_title_lower
+
+    # Detect product type
+    product_type = ""
+    if "rings" in normalized_tags or "ring" in raw_title_lower:
+        product_type = "Ring Set" if is_set else "Ring"
+    elif "earrings" in normalized_tags or "earrings" in raw_title_lower:
+        product_type = "Earrings"
+    elif "bracelet" in normalized_tags or "bracelet" in raw_title_lower:
+        product_type = "Bracelet"
+    elif "necklaces" in normalized_tags or "necklace" in raw_title_lower:
+        if "chain pendant" in normalized_tags and "chain pendant" in raw_title_lower:
+            product_type = "Chain Pendant Necklace"
+        else:
+            product_type = "Necklace"
+
+    if gender and product_type:
+        base = add_term(f"{gender}'s {product_type}")
+    elif product_type:
+        base = add_term(product_type)
     else:
-        base = add_term("Ring")
+        base = add_term("Jewelry")
 
     # Style
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
@@ -83,7 +99,7 @@ def transform_title(raw_title, tags):
     stone_shape = ""
     shape_priority = ["round", "heart", "square", "pear", "triangle", "oblong", "stellar"]
     for shape in shape_priority:
-        if shape in [tag.lower() for tag in tags]:
+        if shape in normalized_tags:
             stone_shape = shape.capitalize()
             break
 
@@ -114,7 +130,6 @@ def transform_title(raw_title, tags):
         "brown": "Brown", "smoked quartz": "Smoky Brown", "coffee": "Coffee", "light coffee": "Coffee"
     }
 
-    normalized_tags = [tag.strip().lower() for tag in tags]
     stone = ""
     if "epoxy" in raw_title_lower or "epoxy" in normalized_tags:
         stone = "Epoxy"
@@ -160,7 +175,7 @@ def transform_title(raw_title, tags):
         material = "Iron"
     elif "brass" in raw_title_lower or "brass" in normalized_tags:
         material = "Brass"
-        
+
     metal_info_parts = [add_term(material), add_term(plating)]
     metal_info = ' '.join(filter(None, metal_info_parts))
 
@@ -173,7 +188,6 @@ def transform_title(raw_title, tags):
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
-    # Priority: 1) 2 Pcs, 2) High Polished (already prioritized), stone shape already used inside "stone"
     if is_set and "2 pcs" not in used_terms and len(final_title + ", 2 Pcs") <= 80:
         final_title += ", 2 Pcs"
         used_terms.add("2 pcs")
