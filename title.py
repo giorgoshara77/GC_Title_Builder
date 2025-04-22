@@ -2,6 +2,7 @@ import streamlit as st
 import re
 import requests
 from bs4 import BeautifulSoup
+import unicodedata
 
 st.set_page_config(page_title="GC Title Generator")
 st.title("🛍️ GC Title Generator")
@@ -25,7 +26,6 @@ def extract_product_info(url):
     try:
         response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
-
         meta_title = soup.find("meta", property="og:title")
         title = meta_title["content"].strip() if meta_title else "No title found"
 
@@ -37,7 +37,6 @@ def extract_product_info(url):
 
         st.write("DEBUG: Extracted Tags", tags)
         return title, tags
-
     except Exception as e:
         st.write("DEBUG: Error extracting tags", str(e))
         return None, []
@@ -54,7 +53,10 @@ def transform_title(raw_title, tags):
             return term
         return None
 
-    # Target Audience + Type
+    def normalize(text):
+        return unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode().lower()
+
+    # Target Audience
     is_set = "ring sets" in tags or "set" in raw_title_lower
     if "men" in tags:
         base = add_term("Men's Ring")
@@ -64,14 +66,8 @@ def transform_title(raw_title, tags):
         base = add_term("Ring")
 
     # Style
-    import unicodedata
-
-    def normalize(text):
-        return unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode().lower()
-
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     normalized_style_map = {normalize(term): term.capitalize() for term in style_terms}
-
     styles = []
     for tag in tags:
         tag_normalized = normalize(tag)
@@ -81,124 +77,96 @@ def transform_title(raw_title, tags):
                 if added:
                     styles.append(added)
                 break
-
     style_str = ' '.join(styles)
 
-    # === STONE TYPE DETECTION ===
+    # === STONE DETECTION ===
     stone_type_substitutions = {
-        "top grade crystal": "Simulated Crystal",
-        "synthetic glass": "Synthetic Glass",
-        "cubic zirconia": "Cubic Zirconia",
-        "aaa cubic zirconia": "Cubic Zirconia",
-        "aaa cz": "CZ",
-        "cz": "CZ",
-        "epoxy": "Epoxy",
-        "precious stone conch": "Simulated Stone Conch",
-        "precious stone lapis": "Simulated Stone Lapis",
-        "precious stone pink crystal": "Simulated Stone PINK CRYSTAL",
-        "precious stone amethyst crystal": "Simulated Stone Amethyst Crystal",
-        "synthetic acrylic": "Synthetic Acrylic",
-        "synthetic imitation amber": "Synthetic Imitation Amber",
-        "ceramic": "Ceramic",
-        "synthetic synthetic glass": "Synthetic Glass",
-        "synthetic glass bead": "Simulated Glass Bead",
-        "semi-precious jade": "Simulated Jade",
-        "synthetic jade": "Simulated Jade",
-        "synthetic cat eye": "Simulated Cat Eye",
-        "semi-precious marcasite": "Simulated Marcasite",
-        "synthetic spinel": "Simulated Spinel",
-        "synthetic turquoise": "Simulated Turquoise",
-        "synthetic pearl": "Simulated Pearl",
-        "synthetic synthetic stone": "Synthetic Stone"
+        "top grade crystal": "Simulated Crystal", "synthetic glass": "Synthetic Glass",
+        "cubic zirconia": "Cubic Zirconia", "aaa cubic zirconia": "Cubic Zirconia", "aaa cz": "CZ", "cz": "CZ",
+        "epoxy": "Epoxy", "precious stone conch": "Simulated Stone Conch",
+        "precious stone lapis": "Simulated Stone Lapis", "precious stone pink crystal": "Simulated Stone PINK CRYSTAL",
+        "precious stone amethyst crystal": "Simulated Stone Amethyst Crystal", "synthetic acrylic": "Synthetic Acrylic",
+        "synthetic imitation amber": "Synthetic Imitation Amber", "ceramic": "Ceramic",
+        "synthetic synthetic glass": "Synthetic Glass", "synthetic glass bead": "Simulated Glass Bead",
+        "semi-precious jade": "Simulated Jade", "synthetic jade": "Simulated Jade",
+        "synthetic cat eye": "Simulated Cat Eye", "semi-precious marcasite": "Simulated Marcasite",
+        "synthetic spinel": "Simulated Spinel", "synthetic turquoise": "Simulated Turquoise",
+        "synthetic pearl": "Simulated Pearl", "synthetic synthetic stone": "Synthetic Stone"
     }
 
-    # Detect stone
-    stone = ""
-    normalized_tags = [tag.strip().lower() for tag in tags]
+    stone_color_substitutions = {
+        "jet": "Black", "black": "Black", "light gray": "Gray", "gray": "Gray", "white": "White",
+        "clear": "Clear", "siam": "Red", "ruby": "Ruby-Colored", "rose": "Rose", "garnet": "Garnet-Colored",
+        "light rose": "Rose", "orange": "Orange", "champagne": "Champagne", "multi color": "Multicolor",
+        "citrine yellow": "Yellow", "topaz": "Topaz-Colored", "citrine": "Citrine-Colored", "light gold": "Light Gold",
+        "emerald": "Emerald-Colored", "blue zircon": "Blue", "peridot": "Peridot Colored",
+        "olivine color": "Olive Green", "apple green color": "Apple Green", "sapphire": "Sapphire-Colored",
+        "montana": "Montana", "sea blue": "Sea Blue", "aquamarine": "Aquamarine", "london blue": "Blue",
+        "tanzanite": "Tanzanite-Colored", "amethyst": "Amethyst-Colored", "light amethyst": "Amethyst-Colored",
+        "brown": "Brown", "smoked quartz": "Smoky Brown", "coffee": "Coffee", "light coffee": "Coffee"
+    }
 
+    normalized_tags = [tag.strip().lower() for tag in tags]
+    stone = ""
     if "epoxy" in raw_title_lower or "epoxy" in normalized_tags:
         stone = "Epoxy"
     elif "no stone" in raw_title_lower or "no stone" in normalized_tags:
         stone = ""
     else:
+        matched_type = None
         for raw_type, formatted in stone_type_substitutions.items():
-          if raw_type in raw_title_lower or raw_type in normalized_tags:
-              stone = formatted
-              break
-        if not stone and "cz" in raw_title_lower:
+            if raw_type in raw_title_lower or raw_type in normalized_tags:
+                matched_type = formatted
+                break
+        if matched_type:
+            match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
+            if match:
+                raw_color = match.group(1).strip().lower()
+                color = stone_color_substitutions.get(raw_color, raw_color.title())
+                stone = f"{color} {matched_type}"
+            else:
+                stone = matched_type
+        elif "cz" in raw_title_lower:
             stone = "Cubic Zirconia"
 
-    # Metal Info (detect multiple platings)
     plating_keywords = {
-        "ip gold": "Gold-Plated",
-        "ip rose gold": "Rose Gold-Plated",
-        "ip black": "Black-Plated",
-        "ip brown": "Brown-Plated",
-        "ip light brown": "Brown-Plated",
-        "ip coffee": "Brown-Plated",
-        "ip light coffee": "Brown-Plated",
-        "rhodium": "Rhodium-Plated"
+        "ip gold": "Gold-Plated", "ip rose gold": "Rose Gold-Plated", "ip black": "Black-Plated",
+        "ip brown": "Brown-Plated", "ip light brown": "Brown-Plated", "ip coffee": "Brown-Plated",
+        "ip light coffee": "Brown-Plated", "rhodium": "Rhodium-Plated"
     }
+    platings_found = [label for keyword, label in plating_keywords.items() if keyword in raw_title_lower]
+    plating = f"{platings_found[1].split('-')[0]} & {platings_found[0]}" if len(platings_found) == 2 else platings_found[0] if platings_found else ""
 
-    platings_found = []
-    for keyword, label in plating_keywords.items():
-        if keyword in raw_title_lower:
-            platings_found.append(label)
-
-    if len(platings_found) == 2:
-        plating = f"{platings_found[1].split('-')[0]} & {platings_found[0]}"
-    elif platings_found:
-        plating = platings_found[0]
-    else:
-        plating = ""
-
-    material = ""
-    if "stainless" in raw_title_lower:
-        material = "Stainless Steel"
-    elif "brass" in raw_title_lower or "brass" in tags:
-        material = "Brass"
-
+    material = "Stainless Steel" if "stainless" in raw_title_lower else "Brass" if "brass" in raw_title_lower or "brass" in tags else ""
     metal_info_parts = [add_term(material), add_term(plating)]
     metal_info = ' '.join(filter(None, metal_info_parts))
 
-    # Optional descriptors (no Gift)
     descriptors = []
     if "high polished" in raw_title_lower:
         added = add_term("High Polished")
         if added:
             descriptors.append(added)
 
-    # Build core title
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
-
-    # Add optional descriptors
     for descriptor in descriptors:
         if len(final_title + ", " + descriptor) <= 80:
             final_title += ", " + descriptor
-
-    # Add 2 Pcs if set and space
     if is_set and "2 pcs" not in used_terms and len(final_title + ", 2 Pcs") <= 80:
         final_title += ", 2 Pcs"
         used_terms.add("2 pcs")
-
-    # Replace CZ if character count exceeds 80
     if len(final_title) > 80 and "Cubic Zirconia" in final_title:
         final_title = final_title.replace("Cubic Zirconia", "CZ")
 
     return final_title.strip()
 
-# ========================
 # UI Logic
-# ========================
-
 if "title" not in st.session_state:
     st.session_state.title = ""
 if "tags" not in st.session_state:
     st.session_state.tags = []
 
 product_url = build_product_url(user_input)
-
 if st.button("🔍 Load Product Info") and product_url:
     if is_valid_alamode_url(product_url):
         st.success("✅ Valid product input. Extracting product data...")
@@ -213,7 +181,6 @@ if st.session_state.title and st.session_state.tags:
     st.write(f"**Title:** {st.session_state.title}")
     st.write(f"**Tags:** {', '.join(st.session_state.tags)}")
     st.write("DEBUG: Extracted Tags", st.session_state.tags)
-
     if st.button("✨ Generate Title"):
         final_title = transform_title(st.session_state.title, st.session_state.tags)
         st.markdown("### 🛒 Your eBay Title")
