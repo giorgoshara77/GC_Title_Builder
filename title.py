@@ -16,7 +16,7 @@ def build_product_url(input_value):
     input_value = input_value.strip()
     if input_value.lower().startswith("https://alamodeonline.com/products/"):
         return input_value
-    elif re.match(r"^[A-Za-z]{2,3}\d{3,6}[a-z]{0,2}$", input_value.lower()):
+    elif re.match(r"^[a-zA-Z0-9]{5,10}$", input_value):
         return f"https://alamodeonline.com/products/{input_value.lower()}"
     else:
         return None
