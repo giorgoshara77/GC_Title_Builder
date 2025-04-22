@@ -109,7 +109,7 @@ def transform_title(raw_title, tags):
         stone = ""
     else:
         for raw_type, formatted in stone_type_substitutions.items():
-            if raw_type in raw_title_lower:
+            if raw_type in raw_title_lower or any(raw_type in tag for tag in tags):
                 stone = formatted
                 break
         if not stone and "cz" in raw_title_lower:
