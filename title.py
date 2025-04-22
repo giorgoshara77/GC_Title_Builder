@@ -151,7 +151,16 @@ def transform_title(raw_title, tags):
     platings_found = [label for keyword, label in plating_keywords.items() if keyword in raw_title_lower]
     plating = f"{platings_found[1].split('-')[0]} & {platings_found[0]}" if len(platings_found) == 2 else platings_found[0] if platings_found else ""
 
-    material = "Stainless Steel" if "stainless" in raw_title_lower else "Brass" if "brass" in raw_title_lower or "brass" in tags else ""
+    material = ""
+    if "stainless" in raw_title_lower:
+        material = "Stainless Steel"
+    elif "925 sterling silver" in raw_title_lower or "simply sterling" in normalized_tags or "925 sterling silver" in normalized_tags:
+        material = "Sterling Silver"
+    elif "iron" in raw_title_lower or "iron" in normalized_tags:
+        material = "Iron"
+    elif "brass" in raw_title_lower or "brass" in normalized_tags:
+        material = "Brass"
+        
     metal_info_parts = [add_term(material), add_term(plating)]
     metal_info = ' '.join(filter(None, metal_info_parts))
 
