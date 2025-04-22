@@ -209,3 +209,4 @@ if st.session_state.title and st.session_state.tags:
         st.markdown("### 🛒 Your eBay Title")
         st.text_area("Generated Title", final_title, height=100)
         st.markdown(f"**Character Count:** `{len(final_title)}/80`")
+
