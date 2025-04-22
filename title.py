@@ -75,17 +75,49 @@ def transform_title(raw_title, tags):
                 break
     style_str = ' '.join(styles)
 
-    # Stone
-    stone = "Clear Cubic Zirconia"
-    if "simulated crystal" in raw_title_lower:
-        stone = "Simulated Crystal"
-    color_match = re.search(r"(champagne|blue|clear|pink|purple|green|black|white|red)", raw_title_lower)
-    if color_match:
-        stone = stone.replace("Clear", color_match.group().capitalize())
-    shape_tag = next((tag.capitalize() for tag in tags if tag in ["round", "heart", "pear", "square"] and tag.lower() not in used_terms), None)
-    if shape_tag:
-        used_terms.add(shape_tag.lower())
-        stone = f"{shape_tag} {stone}"
+    # === STONE DETECTION LOGIC ===
+    stone_type_substitutions = {
+        "top grade crystal": "Simulated Crystal",
+        "synthetic glass": "Synthetic Glass",
+        "cubic zirconia": "Cubic Zirconia",
+        "aaa cubic zirconia": "Cubic Zirconia",
+        "aaa cz": "CZ",
+        "cz": "CZ",
+        "precious stone conch": "Simulated Stone Conch",
+        "precious stone lapis": "Simulated Stone Lapis",
+        "precious stone pink crystal": "Simulated Stone PINK CRYSTAL",
+        "precious stone amethyst crystal": "Simulated Stone Amethyst Crystal",
+        "synthetic acrylic": "Synthetic Acrylic",
+        "synthetic imitation amber": "Synthetic Imitation Amber",
+        "ceramic": "Ceramic",
+        "synthetic synthetic glass": "Synthetic Glass",
+        "synthetic glass bead": "Simulated Glass Bead",
+        "semi-precious jade": "Simulated Jade",
+        "synthetic jade": "Simulated Jade",
+        "synthetic cat eye": "Simulated Cat Eye",
+        "semi-precious marcasite": "Simulated Marcasite",
+        "synthetic spinel": "Simulated Spinel",
+        "synthetic turquoise": "Simulated Turquoise",
+        "synthetic pearl": "Simulated Pearl",
+        "synthetic synthetic stone": "Synthetic Stone"
+    }
+
+    # Check for "No Stone" or "Epoxy"
+    stone = ""
+    if "no stone" in raw_title_lower or "no stone" in tags:
+        stone = ""
+    elif "epoxy" in raw_title_lower or "epoxy" in tags:
+        stone = "Epoxy"
+    else:
+        found_type = None
+        for raw_type, formatted in stone_type_substitutions.items():
+            if raw_type in raw_title_lower:
+                found_type = formatted
+                break
+        if found_type:
+            stone = found_type
+        elif "cz" in raw_title_lower:
+            stone = "Cubic Zirconia"
 
     # Metal Info (detect multiple platings)
     plating_keywords = {
