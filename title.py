@@ -148,21 +148,9 @@ def transform_title(raw_title, tags):
             if match:
                 raw_color = match.group(1).strip().lower()
                 color = stone_color_substitutions.get(raw_color, raw_color.title())
-                if stone_shape:
-                    stone = f"{stone_shape} {color} {matched_type}"
-                else:
-                    stone = f"{color} {matched_type}"
+                stone = f"{stone_shape} {color} {matched_type}".strip()
             else:
-                if stone_shape:
-                    stone = f"{stone_shape} {matched_type}"
-                else:
-                    stone = matched_type
-        elif "cz" in raw_title_lower:
-            stone = "Cubic Zirconia"
-
-    # === CHAIN PENDANT CLEANUP ===
-    if product_type == "Chain Pendant Necklace":
-        title = re.sub(r'(?i),?\s*pendant with\b.*?(?=,|$)', '', title).strip(", ")
+                stone = f"{stone_shape} {matched_type}".strip()
 
     # === METAL INFO ===
     plating_keywords = {
@@ -190,23 +178,19 @@ def transform_title(raw_title, tags):
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
-    # Add 2 Pcs if set and space
     if is_set and "2 pcs" not in used_terms and len(final_title + ", 2 Pcs") <= 80:
         final_title += ", 2 Pcs"
         used_terms.add("2 pcs")
 
-    # Add High Polished if possible
     if "high polished" in raw_title_lower:
         if len(final_title + ", High Polished") <= 80:
             final_title += ", High Polished"
 
-    # Replace Cubic Zirconia with CZ only if too long
     if len(final_title) > 80 and "Cubic Zirconia" in final_title:
         final_title = final_title.replace("Cubic Zirconia", "CZ")
 
     return final_title.strip()
 
-# UI Logic
 if "title" not in st.session_state:
     st.session_state.title = ""
 if "tags" not in st.session_state:
