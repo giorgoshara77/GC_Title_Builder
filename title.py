@@ -146,8 +146,11 @@ def transform_title(raw_title, tags):
             if raw_type in raw_title_lower or raw_type in normalized_tags:
                 matched_type = formatted
                 break
+                
         if matched_type:
-            match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
+            # Remove leading grade descriptors like "aaa grade", "top grade", etc.
+            raw_cleaned_title = re.sub(r"(aaa|top) grade ", "", raw_title_lower)
+            match = re.search(r'in ([a-zA-Z ]+)', raw_cleaned_title)
             if match:
                 raw_color = match.group(1).strip().lower()
                 color = stone_color_substitutions.get(raw_color, raw_color.title())
