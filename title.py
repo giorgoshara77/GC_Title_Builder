@@ -148,7 +148,7 @@ def transform_title(raw_title, tags):
                 break
 
         if matched_type:
-            title = re.sub(r"(aaa|top) grade ", "", title, flags=re.IGNORECASE)
+            title = re.sub(r"(aaa|top)\s*grade\s*(cz)?", "CZ", title, flags=re.IGNORECASE)
             raw_title_lower = title.lower()
             match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
             if match:
