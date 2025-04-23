@@ -72,7 +72,7 @@ def transform_title(raw_title, tags):
         if "chain pendant" in normalized_tags and "chain pendant" in raw_title_lower:
             product_type = "Chain Pendant Necklace"
             # 🔧 CLEANUP: Remove redundant 'Pendant with ...' from product title
-            title = re.sub(r"(?i),?\s*pendant with\b.*?(?=,|$)", "", title).strip(", ")
+            title = re.sub(r"(?i)pendant with", "", title).strip(", ")
             raw_title_lower = title.lower()
         elif "pendant" in normalized_tags and "pendant" in raw_title_lower:
             product_type = "Pendant"
