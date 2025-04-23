@@ -148,16 +148,19 @@ def transform_title(raw_title, tags):
                 break
 
         if matched_type:
-            title = re.sub(r"(aaa|top)\s*grade\s*cz\s*in\s*[a-zA-Z ]+", "", title, flags=re.IGNORECASE)
-            title = re.sub(r"(aaa|top)\s*grade\s*cz", "CZ", title, flags=re.IGNORECASE)
-            title = re.sub(r"in\s+[a-zA-Z ]+", "", title, flags=re.IGNORECASE)
-            raw_title_lower = title.lower()
-            match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
+            # Extract color from the phrase like 'AAA Grade CZ in Clear'
+            match = re.search(r'(?:aaa|top)\s*grade\s*cz\s*in\s*([a-zA-Z ]+)', title, flags=re.IGNORECASE)
             if match:
                 raw_color = match.group(1).strip().lower()
                 color = stone_color_substitutions.get(raw_color, raw_color.title())
             else:
                 color = ""
+
+            # Cleanup the full phrase now that we captured color
+            title = re.sub(r"(aaa|top)\s*grade\s*cz\s*in\s*[a-zA-Z ]+", "CZ", title, flags=re.IGNORECASE)
+            title = re.sub(r"(aaa|top)\s*grade\s*cz", "CZ", title, flags=re.IGNORECASE)
+            title = re.sub(r"in\s+[a-zA-Z ]+", "", title, flags=re.IGNORECASE)
+            raw_title_lower = title.lower()
 
             # Clean up leftover 'in [color]' from visible title
             title = re.sub(r'in [a-zA-Z ]+', '', title).strip(', ')
