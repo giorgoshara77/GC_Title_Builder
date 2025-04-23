@@ -60,7 +60,7 @@ def transform_title(raw_title, tags):
     gender = "Women" if "women" in normalized_tags else "Men" if "men" in normalized_tags else ""
     is_set = "ring sets" in normalized_tags or "set" in raw_title_lower
 
-    # Detect product type
+    # Detect product type (now includes pendant and chain pendant)
     product_type = ""
     if "rings" in normalized_tags or "ring" in raw_title_lower:
         product_type = "Ring Set" if is_set else "Ring"
@@ -68,9 +68,11 @@ def transform_title(raw_title, tags):
         product_type = "Earrings"
     elif "bracelet" in normalized_tags or "bracelet" in raw_title_lower:
         product_type = "Bracelet"
-    elif "necklaces" in normalized_tags or "necklace" in raw_title_lower:
+    elif "necklaces" in normalized_tags:
         if "chain pendant" in normalized_tags and "chain pendant" in raw_title_lower:
             product_type = "Chain Pendant Necklace"
+        elif "pendant" in normalized_tags and "pendant" in raw_title_lower:
+            product_type = "Pendant"
         else:
             product_type = "Necklace"
 
