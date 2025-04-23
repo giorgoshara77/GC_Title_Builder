@@ -148,8 +148,9 @@ def transform_title(raw_title, tags):
                 break
 
         if matched_type:
-            raw_cleaned_title = re.sub(r"(aaa|top) grade ", "", raw_title_lower)
-            match = re.search(r'in ([a-zA-Z ]+)', raw_cleaned_title)
+            title = re.sub(r"(aaa|top) grade ", "", title, flags=re.IGNORECASE)
+            raw_title_lower = title.lower()
+            match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
             if match:
                 raw_color = match.group(1).strip().lower()
                 color = stone_color_substitutions.get(raw_color, raw_color.title())
