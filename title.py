@@ -141,10 +141,8 @@ def transform_title(raw_title, tags):
         title = re.sub(r'in\s+[a-zA-Z ]+', '', title).strip(', ')
         raw_title_lower = title.lower()
 
-        if color:
-            stone = f"{stone_shape + ' ' if stone_shape else ''}{color} {matched_type}".strip()
-        else:
-            stone = f"{stone_shape + ' ' if stone_shape else ''}{matched_type}".strip()
+        stone_parts = [stone_shape, color, matched_type]
+        stone = ' '.join(part for part in stone_parts if part).strip()
 
     # === METAL INFO ===
     plating_keywords = {
