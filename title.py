@@ -146,14 +146,21 @@ def transform_title(raw_title, tags):
             if raw_type in raw_title_lower or raw_type in normalized_tags:
                 matched_type = formatted
                 break
-                
+
         if matched_type:
-            # Remove leading grade descriptors like "aaa grade", "top grade", etc.
             raw_cleaned_title = re.sub(r"(aaa|top) grade ", "", raw_title_lower)
             match = re.search(r'in ([a-zA-Z ]+)', raw_cleaned_title)
             if match:
                 raw_color = match.group(1).strip().lower()
                 color = stone_color_substitutions.get(raw_color, raw_color.title())
+            else:
+                color = ""
+
+            # Clean up leftover 'in [color]' from visible title
+            title = re.sub(r'in [a-zA-Z ]+', '', title).strip(', ')
+            raw_title_lower = title.lower()
+
+            if color:
                 stone = f"{stone_shape} {color} {matched_type}".strip()
             else:
                 stone = f"{stone_shape} {matched_type}".strip()
@@ -196,6 +203,7 @@ def transform_title(raw_title, tags):
         final_title = final_title.replace("Cubic Zirconia", "CZ")
 
     return final_title.strip()
+
 
 if "title" not in st.session_state:
     st.session_state.title = ""
