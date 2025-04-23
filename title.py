@@ -35,7 +35,6 @@ def extract_product_info(url):
             tag_links = tag_container.find_all("a")
             tags = [a.get_text(strip=True).lower().rstrip(',') for a in tag_links if a.get_text(strip=True)]
 
-        st.write("DEBUG: Extracted Tags", tags)
         return title, tags
     except Exception as e:
         st.write("DEBUG: Error extracting tags", str(e))
@@ -71,7 +70,6 @@ def transform_title(raw_title, tags):
     elif "necklaces" in normalized_tags:
         if "chain pendant" in normalized_tags and "chain pendant" in raw_title_lower:
             product_type = "Chain Pendant Necklace"
-            # 🔧 CLEANUP: Remove redundant 'Pendant with ...' from product title
             title = re.sub(r"(?i)\bpendant with\b", "", title).strip(", ")
             raw_title_lower = title.lower()
         elif "pendant" in normalized_tags and "pendant" in raw_title_lower:
@@ -108,68 +106,45 @@ def transform_title(raw_title, tags):
             stone_shape = shape.capitalize()
             break
 
-    # === STONE TYPE + COLOR DETECTION ===
-    stone_type_substitutions = {
-        "top grade crystal": "Simulated Crystal", "synthetic glass": "Synthetic Glass",
-        "cubic zirconia": "Cubic Zirconia", "aaa cubic zirconia": "Cubic Zirconia", "aaa cz": "CZ", "cz": "CZ",
-        "epoxy": "Epoxy", "precious stone conch": "Simulated Stone Conch",
-        "precious stone lapis": "Simulated Stone Lapis", "precious stone pink crystal": "Simulated Stone PINK CRYSTAL",
-        "precious stone amethyst crystal": "Simulated Stone Amethyst Crystal", "synthetic acrylic": "Synthetic Acrylic",
-        "synthetic imitation amber": "Synthetic Imitation Amber", "ceramic": "Ceramic",
-        "synthetic synthetic glass": "Synthetic Glass", "synthetic glass bead": "Simulated Glass Bead",
-        "semi-precious jade": "Simulated Jade", "synthetic jade": "Simulated Jade",
-        "synthetic cat eye": "Simulated Cat Eye", "semi-precious marcasite": "Simulated Marcasite",
-        "synthetic spinel": "Simulated Spinel", "synthetic turquoise": "Simulated Turquoise",
-        "synthetic pearl": "Simulated Pearl", "synthetic synthetic stone": "Synthetic Stone"
+    # === STONE COLOR MAPPING ===
+    stone_color_substitutions = {
+        "jet": "Black", "black": "Black", "light gray": "Light Gray", "gray": "Gray", "white": "White",
+        "clear": "Clear", "siam": "Red", "ruby": "Red", "rose": "Rose", "garnet": "Red", "light rose": "Rose",
+        "orange": "Orange", "champagne": "Champagne", "multi color": "Multicolor", "citrine yellow": "Yellow",
+        "topaz": "Yellow", "citrine": "Yellow", "light gold": "Light Gold", "emerald": "Green", "blue zircon": "Blue",
+        "peridot": "Green", "olivine color": "Green", "apple green color": "Green", "sapphire": "Blue",
+        "montana": "Blue", "sea blue": "Blue", "aquamarine": "Blue", "london blue": "Blue", "tanzanite": "Blue",
+        "amethyst": "Purple", "light amethyst": "Light Purple", "brown": "Brown", "smoked quartz": "Smoky Brown",
+        "coffee": "Coffee", "light coffee": "Coffee"
     }
 
-    stone_color_substitutions = {
-        "jet": "Black", "black": "Black", "light gray": "Gray", "gray": "Gray", "white": "White",
-        "clear": "Clear", "siam": "Red", "ruby": "Ruby-Colored", "rose": "Rose", "garnet": "Garnet-Colored",
-        "light rose": "Rose", "orange": "Orange", "champagne": "Champagne", "multi color": "Multicolor",
-        "citrine yellow": "Yellow", "topaz": "Topaz-Colored", "citrine": "Citrine-Colored", "light gold": "Light Gold",
-        "emerald": "Emerald-Colored", "blue zircon": "Blue", "peridot": "Peridot Colored",
-        "olivine color": "Olive Green", "apple green color": "Apple Green", "sapphire": "Sapphire-Colored",
-        "montana": "Montana", "sea blue": "Sea Blue", "aquamarine": "Aquamarine", "london blue": "Blue",
-        "tanzanite": "Tanzanite-Colored", "amethyst": "Amethyst-Colored", "light amethyst": "Amethyst-Colored",
-        "brown": "Brown", "smoked quartz": "Smoky Brown", "coffee": "Coffee", "light coffee": "Coffee"
+    stone_type_substitutions = {
+        "top grade crystal": "Simulated Crystal", "synthetic glass": "Synthetic Glass",
+        "cubic zirconia": "Cubic Zirconia", "aaa cubic zirconia": "Cubic Zirconia", "aaa cz": "CZ", "cz": "CZ"
     }
 
     stone = ""
-    if "epoxy" in raw_title_lower or "epoxy" in normalized_tags:
-        stone = "Epoxy"
-    elif "no stone" in raw_title_lower or "no stone" in normalized_tags:
-        stone = ""
-    else:
-        matched_type = None
-        for raw_type, formatted in stone_type_substitutions.items():
-            if raw_type in raw_title_lower or raw_type in normalized_tags:
-                matched_type = formatted
-                break
+    matched_type = None
+    for raw_type, formatted in stone_type_substitutions.items():
+        if raw_type in raw_title_lower:
+            matched_type = formatted
+            break
 
-        if matched_type:
-            # Extract color from the phrase like 'AAA Grade CZ in Clear'
-            match = re.search(r'(?:aaa|top)\s*grade\s*cz\s*in\s*([a-zA-Z ]+)', title, flags=re.IGNORECASE)
-            if match:
-                raw_color = match.group(1).strip().lower()
-                color = stone_color_substitutions.get(raw_color, raw_color.title())
-            else:
-                color = ""
+    if matched_type:
+        match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
+        if match:
+            raw_color = match.group(1).strip().lower()
+            color = stone_color_substitutions.get(raw_color, raw_color.title())
+        else:
+            color = ""
 
-            # Cleanup the full phrase now that we captured color
-            title = re.sub(r"(aaa|top)\s*grade\s*cz\s*in\s*[a-zA-Z ]+", "CZ", title, flags=re.IGNORECASE)
-            title = re.sub(r"(aaa|top)\s*grade\s*cz", "CZ", title, flags=re.IGNORECASE)
-            title = re.sub(r"in\s+[a-zA-Z ]+", "", title, flags=re.IGNORECASE)
-            raw_title_lower = title.lower()
+        title = re.sub(r'in\s+[a-zA-Z ]+', '', title).strip(', ')
+        raw_title_lower = title.lower()
 
-            # Clean up leftover 'in [color]' from visible title
-            title = re.sub(r'in [a-zA-Z ]+', '', title).strip(', ')
-            raw_title_lower = title.lower()
-
-            if color:
-                stone = f"{stone_shape + ' ' if stone_shape else ''}{color} {matched_type}".strip()
-            else:
-                stone = f"{stone_shape + ' ' if stone_shape else ''}{matched_type}".strip()
+        if color:
+            stone = f"{stone_shape + ' ' if stone_shape else ''}{color} {matched_type}".strip()
+        else:
+            stone = f"{stone_shape + ' ' if stone_shape else ''}{matched_type}".strip()
 
     # === METAL INFO ===
     plating_keywords = {
@@ -193,7 +168,6 @@ def transform_title(raw_title, tags):
     metal_info_parts = [add_term(material), add_term(plating)]
     metal_info = ' '.join(filter(None, metal_info_parts))
 
-    # === BUILD FINAL TITLE ===
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
@@ -201,15 +175,13 @@ def transform_title(raw_title, tags):
         final_title += ", 2 Pcs"
         used_terms.add("2 pcs")
 
-    if "high polished" in raw_title_lower:
-        if len(final_title + ", High Polished") <= 80:
-            final_title += ", High Polished"
+    if "high polished" in raw_title_lower and len(final_title + ", High Polished") <= 80:
+        final_title += ", High Polished"
 
     if len(final_title) > 80 and "Cubic Zirconia" in final_title:
         final_title = final_title.replace("Cubic Zirconia", "CZ")
 
     return final_title.strip()
-
 
 if "title" not in st.session_state:
     st.session_state.title = ""
