@@ -42,7 +42,7 @@ def extract_product_info(url):
 
 def transform_title(raw_title, tags):
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
-    raw_title_lower = title.lower()
+    raw_title_lower = raw_title.lower()
     used_terms = set()
 
     def add_term(term):
@@ -59,6 +59,7 @@ def transform_title(raw_title, tags):
     gender = "Women" if "women" in normalized_tags else "Men" if "men" in normalized_tags else ""
     is_set = "ring sets" in normalized_tags or "set" in raw_title_lower
 
+    # === PRODUCT TYPE DETECTION ===
     product_type = ""
     if "rings" in normalized_tags or "ring" in raw_title_lower:
         product_type = "Ring Set" if is_set else "Ring"
@@ -69,7 +70,7 @@ def transform_title(raw_title, tags):
     elif "necklaces" in normalized_tags:
         if "chain pendant" in normalized_tags and "chain pendant" in raw_title_lower:
             product_type = "Chain Pendant Necklace"
-            title = re.sub(r"(\bchain pendant necklace\b|\bpendant with\b)", "", title, flags=re.IGNORECASE).strip(", ")
+            title = re.sub(r"(?i)\bpendant with\b", "", title).strip(", ")
             raw_title_lower = title.lower()
         elif "pendant" in normalized_tags and "pendant" in raw_title_lower:
             product_type = "Pendant"
@@ -83,6 +84,7 @@ def transform_title(raw_title, tags):
     else:
         base = add_term("Jewelry")
 
+    # === STYLE ===
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
     normalized_style_map = {normalize(term): term.capitalize() for term in style_terms}
     styles = []
@@ -96,9 +98,15 @@ def transform_title(raw_title, tags):
                 break
     style_str = ' '.join(styles)
 
+    # === STONE SHAPE DETECTION ===
+    stone_shape = ""
     shape_priority = ["round", "heart", "square", "pear", "triangle", "oblong", "stellar"]
-    stone_shape = next((shape.capitalize() for shape in shape_priority if shape in normalized_tags), "")
+    for shape in shape_priority:
+        if shape in normalized_tags:
+            stone_shape = shape.capitalize()
+            break
 
+    # === STONE COLOR MAPPING ===
     stone_color_substitutions = {
         "jet": "Black", "black": "Black", "light gray": "Light Gray", "gray": "Gray", "white": "White",
         "clear": "Clear", "siam": "Red", "ruby": "Red", "rose": "Rose", "garnet": "Red", "light rose": "Rose",
@@ -124,7 +132,11 @@ def transform_title(raw_title, tags):
 
     if matched_type:
         match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
-        color = stone_color_substitutions.get(match.group(1).strip().lower(), match.group(1).strip().title()) if match else ""
+        if match:
+            raw_color = match.group(1).strip().lower()
+            color = stone_color_substitutions.get(raw_color, raw_color.title())
+        else:
+            color = ""
 
         title = re.sub(r'in\s+[a-zA-Z ]+', '', title).strip(', ')
         raw_title_lower = title.lower()
@@ -134,6 +146,7 @@ def transform_title(raw_title, tags):
         else:
             stone = f"{stone_shape + ' ' if stone_shape else ''}{matched_type}".strip()
 
+    # === METAL INFO ===
     plating_keywords = {
         "ip gold": "Gold-Plated", "ip rose gold": "Rose Gold-Plated", "ip black": "Black-Plated",
         "ip brown": "Brown-Plated", "ip light brown": "Brown-Plated", "ip coffee": "Brown-Plated",
