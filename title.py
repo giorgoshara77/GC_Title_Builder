@@ -61,10 +61,17 @@ def transform_title(raw_title, tags):
 
     # === PRODUCT TYPE DETECTION ===
     product_type = ""
-    if "rings" in normalized_tags or re.search(r'\bring\b', raw_title_lower):
+    if "earrings" in normalized_tags and "women" in normalized_tags:
+        if "stud" in normalized_tags:
+            product_type = "Stud Earrings"
+        elif "dangle & drop" in normalized_tags:
+            product_type = "Dangle & Drop Earrings"
+        elif "hoops & huggies" in normalized_tags:
+            product_type = "Hoops & Huggies Earrings"
+        else:
+            product_type = "Earrings"
+    elif "rings" in normalized_tags or re.search(r'\bring\b', raw_title_lower):
         product_type = "Ring Set" if is_set else "Ring"
-    elif "earrings" in normalized_tags or "earrings" in raw_title_lower:
-        product_type = "Earrings"
     elif "bracelet" in normalized_tags or "bracelet" in raw_title_lower:
         product_type = "Bracelet"
     elif "necklaces" in normalized_tags:
