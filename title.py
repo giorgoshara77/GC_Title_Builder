@@ -61,7 +61,7 @@ def transform_title(raw_title, tags):
 
     # === PRODUCT TYPE DETECTION ===
     product_type = ""
-    if "rings" in normalized_tags or "ring" in raw_title_lower:
+    if "rings" in normalized_tags or re.search(r'\bring\b', raw_title_lower):
         product_type = "Ring Set" if is_set else "Ring"
     elif "earrings" in normalized_tags or "earrings" in raw_title_lower:
         product_type = "Earrings"
