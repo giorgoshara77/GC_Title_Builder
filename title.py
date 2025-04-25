@@ -35,12 +35,14 @@ def extract_product_info(url):
             tag_links = tag_container.find_all("a")
             tags = [a.get_text(strip=True).lower().rstrip(',') for a in tag_links if a.get_text(strip=True)]
 
-        return title, tags
+        full_text = soup.get_text(separator=' ').lower()
+
+        return title, tags, full_text
     except Exception as e:
         st.write("DEBUG: Error extracting tags", str(e))
-        return None, []
+        return None, [], ""
 
-def transform_title(raw_title, tags):
+def transform_title(raw_title, tags, full_text):
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
     raw_title_lower = raw_title.lower()
     used_terms = set()
@@ -52,16 +54,12 @@ def transform_title(raw_title, tags):
             return term
         return None
 
-    def normalize(text):
-        return unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode().lower()
-
     normalized_tags = [tag.lower() for tag in tags]
     gender = "Women" if "women" in normalized_tags else "Men" if "men" in normalized_tags else ""
     is_set = "ring sets" in normalized_tags or "set" in raw_title_lower
 
-    # === PRODUCT TYPE DETECTION ===
     product_type = ""
-    if "cocktail & statement" in normalized_tags and "rings" in normalized_tags and "women" in normalized_tags:
+    if "cocktail & statement" in normalized_tags and any(r in normalized_tags for r in ["rings", "ring"]) and "women" in normalized_tags:
         product_type = "Cocktail Ring"
     elif "earrings" in normalized_tags and "women" in normalized_tags:
         if "stud" in normalized_tags:
@@ -93,12 +91,11 @@ def transform_title(raw_title, tags):
     else:
         base = add_term("Jewelry")
 
-    # === STYLE ===
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
-    normalized_style_map = {normalize(term): term.capitalize() for term in style_terms}
+    normalized_style_map = {unicodedata.normalize("NFKD", term).encode("ASCII", "ignore").decode().lower(): term.capitalize() for term in style_terms}
     styles = []
     for tag in tags:
-        tag_normalized = normalize(tag)
+        tag_normalized = unicodedata.normalize("NFKD", tag).encode("ASCII", "ignore").decode().lower()
         for norm_term, display_term in normalized_style_map.items():
             if norm_term in tag_normalized:
                 added = add_term(display_term)
@@ -107,7 +104,6 @@ def transform_title(raw_title, tags):
                 break
     style_str = ' '.join(styles)
 
-    # === STONE SHAPE DETECTION ===
     stone_shape = ""
     shape_priority = ["round", "heart", "square", "pear", "triangle", "oblong", "stellar"]
     for shape in shape_priority:
@@ -115,7 +111,6 @@ def transform_title(raw_title, tags):
             stone_shape = shape.capitalize()
             break
 
-    # === STONE COLOR MAPPING ===
     stone_color_substitutions = {
         "jet": "Black", "black": "Black", "light gray": "Light Gray", "gray": "Gray", "white": "White",
         "clear": "Clear", "siam": "Red", "ruby": "Red", "rose": "Rose", "garnet": "Red", "light rose": "Rose",
@@ -128,15 +123,17 @@ def transform_title(raw_title, tags):
     }
 
     stone_type_substitutions = {
-        "top grade crystal": "Simulated Crystal", "synthetic glass": "Synthetic Glass",
-        "cubic zirconia": "Cubic Zirconia", "aaa cubic zirconia": "Cubic Zirconia", "aaa cz": "CZ", "cz": "CZ",
-        "synthetic garnet": "Simulated Garnet"
+        "synthetic pearl": "Simulated Pearl", "top grade crystal": "Simulated Crystal",
+        "synthetic glass": "Synthetic Glass", "cubic zirconia": "Cubic Zirconia",
+        "aaa cubic zirconia": "Cubic Zirconia", "aaa cz": "CZ", "cz": "CZ",
+        "precious stone garnet": "Simulated Garnet", "synthetic garnet": "Simulated Garnet"
     }
 
     stone = ""
     matched_type = None
+    combined_text = raw_title_lower + " " + full_text
     for raw_type, formatted in stone_type_substitutions.items():
-        if raw_type in raw_title_lower:
+        if raw_type in combined_text:
             matched_type = formatted
             break
 
@@ -156,7 +153,6 @@ def transform_title(raw_title, tags):
         else:
             stone = f"{stone_shape + ' ' if stone_shape else ''}{matched_type}".strip()
 
-    # === METAL INFO ===
     plating_keywords = {
         "ip gold": "Gold-Plated", "ip rose gold": "Rose Gold-Plated", "ip black": "Black-Plated",
         "ip brown": "Brown-Plated", "ip light brown": "Brown-Plated", "ip coffee": "Brown-Plated",
@@ -197,14 +193,17 @@ if "title" not in st.session_state:
     st.session_state.title = ""
 if "tags" not in st.session_state:
     st.session_state.tags = []
+if "text" not in st.session_state:
+    st.session_state.text = ""
 
 product_url = build_product_url(user_input)
 if st.button("🔍 Load Product Info") and product_url:
     if is_valid_alamode_url(product_url):
         st.success("✅ Valid product input. Extracting product data...")
-        title, tags = extract_product_info(product_url)
+        title, tags, text = extract_product_info(product_url)
         st.session_state.title = title
         st.session_state.tags = tags
+        st.session_state.text = text
     else:
         st.error("❌ Invalid product URL or SKU format.")
 
@@ -213,7 +212,7 @@ if st.session_state.title and st.session_state.tags:
     st.write(f"**Title:** {st.session_state.title}")
     st.write(f"**Tags:** {', '.join(st.session_state.tags)}")
     if st.button("✨ Generate Title"):
-        final_title = transform_title(st.session_state.title, st.session_state.tags)
+        final_title = transform_title(st.session_state.title, st.session_state.tags, st.session_state.text)
         st.markdown("### 🛒 Your eBay Title")
         st.text_area("Generated Title", final_title, height=100)
         st.markdown(f"**Character Count:** `{len(final_title)}/80`")
