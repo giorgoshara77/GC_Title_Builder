@@ -61,7 +61,9 @@ def transform_title(raw_title, tags):
 
     # === PRODUCT TYPE DETECTION ===
     product_type = ""
-    if "earrings" in normalized_tags and "women" in normalized_tags:
+    if "cocktail & statement" in normalized_tags and "ring" in normalized_tags and "women" in normalized_tags:
+        product_type = "Cocktail Ring"
+    elif "earrings" in normalized_tags and "women" in normalized_tags:
         if "stud" in normalized_tags:
             product_type = "Stud Earrings"
         elif "dangle & drop" in normalized_tags:
