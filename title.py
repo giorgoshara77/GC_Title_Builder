@@ -61,7 +61,7 @@ def transform_title(raw_title, tags):
 
     # === PRODUCT TYPE DETECTION ===
     product_type = ""
-    if "cocktail & statement" in normalized_tags and "ring" in normalized_tags and "women" in normalized_tags:
+    if "cocktail & statement" in normalized_tags and "rings" in normalized_tags and "women" in normalized_tags:
         product_type = "Cocktail Ring"
     elif "earrings" in normalized_tags and "women" in normalized_tags:
         if "stud" in normalized_tags:
@@ -129,7 +129,8 @@ def transform_title(raw_title, tags):
 
     stone_type_substitutions = {
         "top grade crystal": "Simulated Crystal", "synthetic glass": "Synthetic Glass",
-        "cubic zirconia": "Cubic Zirconia", "aaa cubic zirconia": "Cubic Zirconia", "aaa cz": "CZ", "cz": "CZ"
+        "cubic zirconia": "Cubic Zirconia", "aaa cubic zirconia": "Cubic Zirconia", "aaa cz": "CZ", "cz": "CZ",
+        "synthetic garnet": "Simulated Garnet"
     }
 
     stone = ""
