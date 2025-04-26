@@ -59,7 +59,9 @@ def transform_title(raw_title, tags, full_text):
     is_set = "ring sets" in normalized_tags or "set" in raw_title_lower
 
     product_type = ""
-    if "cocktail & statement" in normalized_tags and any(r in normalized_tags for r in ["rings", "ring"]) and "women" in normalized_tags:
+    if "bands" in normalized_tags and any(r in normalized_tags for r in ["rings", "ring"]):
+        product_type = "Ring Band"
+    elif "cocktail & statement" in normalized_tags and any(r in normalized_tags for r in ["rings", "ring"]) and "women" in normalized_tags:
         product_type = "Cocktail Ring"
     elif "earrings" in normalized_tags and "women" in normalized_tags:
         if "stud" in normalized_tags:
