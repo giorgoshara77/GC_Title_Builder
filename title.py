@@ -135,14 +135,18 @@ def transform_title(raw_title, tags, full_text):
 
     stone = ""
     matched_type = None
-    combined_text = raw_title_lower + " " + full_text
+    combined_text = (raw_title + " " + full_text).lower()
 
-    # Skip stone detection if 'No Stone' found
-    if "no stone" not in raw_title_lower and "no stone" not in full_text and "no stone" not in normalized_tags:
+    # Skip stone matching if 'No Stone' present
+    if "no stone" not in combined_text and "no stone" not in normalized_tags:
         for raw_type, formatted in stone_type_substitutions.items():
-            if raw_type in combined_text:
+            if raw_type.lower() in combined_text:
                 matched_type = formatted
                 break
+
+        # Fallback to CZ if CZ appears but nothing else matched
+        if not matched_type and ("cubic zirconia" in combined_text or "aaa cz" in combined_text or "cz" in combined_text):
+            matched_type = "CZ"
 
     if matched_type:
         match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
