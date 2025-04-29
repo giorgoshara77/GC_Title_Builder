@@ -119,13 +119,17 @@ def transform_title(raw_title, tags, full_text):
     }
 
     stone_type_substitutions = {
-        "synthetic turquoise": "Simulated Turquoise",
-        "synthetic garnet": "Simulated Garnet",
-        "precious stone garnet": "Simulated Garnet",
-        "top grade crystal": "Simulated Crystal",
-        "synthetic glass": "Synthetic Glass",
-        "synthetic pearl": "Simulated Pearl"
-    }
+    "synthetic turquoise": "Simulated Turquoise",
+    "synthetic garnet": "Simulated Garnet",
+    "precious stone garnet": "Simulated Garnet",
+    "top grade crystal": "Simulated Crystal",
+    "synthetic glass": "Synthetic Glass",
+    "synthetic pearl": "Simulated Pearl",
+    "aaa grade cz": "CZ",
+    "aaa cz": "CZ",
+    "cubic zirconia": "Cubic Zirconia",
+    "cz": "CZ"
+}
 
     matched_type = None
     if "no stone" in raw_title_lower or "no stone" in full_text or "no stone" in normalized_tags:
