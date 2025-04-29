@@ -151,10 +151,16 @@ def transform_title(raw_title, tags, full_text):
         stone = ""
 
     plating_keywords = {
-        "ip gold": "Gold-Plated", "ip rose gold": "Rose Gold-Plated", "ip black": "Black-Plated",
-        "ip brown": "Brown-Plated", "ip light brown": "Brown-Plated", "ip coffee": "Brown-Plated",
-        "ip light coffee": "Brown-Plated", "rhodium": "Rhodium-Plated"
-    }
+    "ip gold": "Gold-Plated",
+    "ip rose gold": "Rose Gold-Plated",
+    "ip black": "Black-Plated",
+    "ip light black": "Light Black-Plated",
+    "ip brown": "Brown-Plated",
+    "ip light brown": "Light Brown-Plated",
+    "ip coffee": "Brown-Plated",
+    "ip light coffee": "Light Coffee-Plated",
+    "rhodium": "Rhodium-Plated"
+}
     platings_found = [label for keyword, label in plating_keywords.items() if keyword in raw_title_lower]
     plating = f"{platings_found[1].split('-')[0]} & {platings_found[0]}" if len(platings_found) == 2 else platings_found[0] if platings_found else ""
 
