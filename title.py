@@ -128,16 +128,21 @@ def transform_title(raw_title, tags, full_text):
         "synthetic pearl": "Simulated Pearl", "top grade crystal": "Simulated Crystal",
         "synthetic glass": "Synthetic Glass", "cubic zirconia": "Cubic Zirconia",
         "aaa cubic zirconia": "Cubic Zirconia", "aaa cz": "CZ", "cz": "CZ",
-        "precious stone garnet": "Simulated Garnet", "synthetic garnet": "Simulated Garnet"
+        "precious stone garnet": "Simulated Garnet", "synthetic garnet": "Simulated Garnet",
+        "synthetic turquoise": "Simulated Turquoise", "precious stone turquoise": "Simulated Turquoise",
+        "semi-precious turquoise": "Simulated Turquoise"
     }
 
     stone = ""
     matched_type = None
     combined_text = raw_title_lower + " " + full_text
-    for raw_type, formatted in stone_type_substitutions.items():
-        if raw_type in combined_text:
-            matched_type = formatted
-            break
+
+    # Skip stone detection if 'No Stone' found
+    if "no stone" not in raw_title_lower and "no stone" not in full_text and "no stone" not in normalized_tags:
+        for raw_type, formatted in stone_type_substitutions.items():
+            if raw_type in combined_text:
+                matched_type = formatted
+                break
 
     if matched_type:
         match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
