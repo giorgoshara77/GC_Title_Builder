@@ -43,50 +43,18 @@ def extract_product_info(url):
         return None, [], ""
 
 def get_stone_type(product_title, full_text, tags):
-    stone_type_substitutions = {
-        "top grade crystal": "Simulated Crystal",
-        "synthetic glass": "Synthetic Glass",
-        "cubic zirconia": "Cubic Zirconia",
-        "aaa cubic zirconia": "Cubic Zirconia",
-        "aaa cz": "CZ",
-        "cz": "CZ",
-        "precious stone garnet": "Simulated Garnet",
-        "synthetic garnet": "Simulated Garnet",
-        "synthetic turquoise": "Simulated Turquoise",
-        "precious stone turquoise": "Simulated Turquoise",
-        "semi-precious turquoise": "Simulated Turquoise",
-        "precious stone conch": "Simulated Stone Conch",
-        "precious stone lapis": "Simulated Stone Lapis",
-        "precious stone pink crystal": "Simulated Stone PINK CRYSTAL",
-        "precious stone amethyst crystal": "Simulated Stone Amethyst Crystal",
-        "synthetic acrylic": "Synthetic Acrylic",
-        "synthetic imitation amber": "Synthetic Imitation Amber",
-        "ceramic": "Ceramic",
-        "synthetic synthetic glass": "Synthetic Glass",
-        "synthetic glass bead": "Simulated Glass Bead",
-        "semi-precious jade": "Simulated Jade",
-        "synthetic jade": "Simulated Jade",
-        "synthetic cat eye": "Simulated Cat Eye",
-        "semi-precious marcasite": "Simulated Marcasite",
-        "synthetic spinel": "Simulated Spinel",
-        "synthetic pearl": "Simulated Pearl",
-        "synthetic synthetic stone": "Synthetic Stone"
-    }
-
     combined_text = (product_title + " " + full_text).lower()
     tags = [tag.lower() for tag in tags]
 
     if "no stone" in combined_text or "no stone" in tags:
-        return None
+        return "No Stone"
 
-    for raw_type, formatted in stone_type_substitutions.items():
-        if raw_type in combined_text:
-            return formatted
+    if "synthetic garnet" in combined_text:
+        return "Simulated Garnet"
+    if "synthetic turquoise" in combined_text:
+        return "Simulated Turquoise"
 
-    if "aaa grade cz" in tags or "cubic zirconia" in tags:
-        return "Cubic Zirconia"
-
-    return None
+    return None  # Don't fallback to CZ
 
 def transform_title(raw_title, tags, full_text):
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
@@ -136,7 +104,12 @@ def transform_title(raw_title, tags, full_text):
             color = color_map.get(raw_color, raw_color.title())
         title = re.sub(r'in\s+[a-zA-Z ]+', '', title).strip(', ')
 
-    stone = f"{stone_shape + ' ' if stone_shape else ''}{color + ' ' if color else ''}{matched_type}".strip() if matched_type else ""
+    if matched_type == "No Stone":
+        stone = "with No Stone"
+    elif matched_type:
+        stone = f"{stone_shape + ' ' if stone_shape else ''}{color + ' ' if color else ''}{matched_type}".strip()
+    else:
+        stone = ""
 
     plating = "Sterling Silver" if "sterling" in raw_title_lower else ""
     parts = list(filter(None, [base, style_str, stone, plating]))
