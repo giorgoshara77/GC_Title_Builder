@@ -42,20 +42,6 @@ def extract_product_info(url):
         st.write("DEBUG: Error extracting tags", str(e))
         return None, [], ""
 
-def get_stone_type(product_title, full_text, tags):
-    combined_text = (product_title + " " + full_text).lower()
-    tags = [tag.lower() for tag in tags]
-
-    if "no stone" in combined_text or "no stone" in tags:
-        return "No Stone"
-
-    if "synthetic garnet" in combined_text:
-        return "Simulated Garnet"
-    if "synthetic turquoise" in combined_text:
-        return "Simulated Turquoise"
-
-    return None  # Don't fallback to CZ
-
 def transform_title(raw_title, tags, full_text):
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
     raw_title_lower = raw_title.lower()
@@ -72,55 +58,132 @@ def transform_title(raw_title, tags, full_text):
     gender = "Women" if "women" in normalized_tags else "Men" if "men" in normalized_tags else ""
     is_set = "ring sets" in normalized_tags or "set" in raw_title_lower
 
-    product_type = "Ring"  # Fallback default
+    product_type = ""
     if "bands" in normalized_tags and any(r in normalized_tags for r in ["rings", "ring"]):
         product_type = "Ring Band"
     elif "cocktail & statement" in normalized_tags and "rings" in normalized_tags and "women" in normalized_tags:
         product_type = "Cocktail Ring"
+    elif "earrings" in normalized_tags and "women" in normalized_tags:
+        if "stud" in normalized_tags:
+            product_type = "Stud Earrings"
+        elif "dangle & drop" in normalized_tags:
+            product_type = "Dangle & Drop Earrings"
+        elif "hoops & huggies" in normalized_tags:
+            product_type = "Hoops & Huggies Earrings"
+        else:
+            product_type = "Earrings"
+    elif "rings" in normalized_tags or re.search(r'\bring\b', raw_title_lower):
+        product_type = "Ring Set" if is_set else "Ring"
+    elif "bracelet" in normalized_tags or "bracelet" in raw_title_lower:
+        product_type = "Bracelet"
+    elif "necklaces" in normalized_tags:
+        if "chain pendant" in normalized_tags and "chain pendant" in raw_title_lower:
+            product_type = "Chain Pendant Necklace"
+            title = re.sub(r"(?i)\bpendant with\b", "", title).strip(", ")
+            raw_title_lower = title.lower()
+        elif "pendant" in normalized_tags and "pendant" in raw_title_lower:
+            product_type = "Pendant"
+        else:
+            product_type = "Necklace"
 
-    if gender:
+    if gender and product_type:
         base = add_term(f"{gender}'s {product_type}")
-    else:
+    elif product_type:
         base = add_term(product_type)
+    else:
+        base = add_term("Jewelry")
 
     style_terms = ["solitaire", "halo", "heart", "stackable", "eternity", "pavé", "midi"]
-    styles = [add_term(term.capitalize()) for term in style_terms if term in normalized_tags]
-    style_str = ' '.join([s for s in styles if s])
+    normalized_style_map = {unicodedata.normalize("NFKD", term).encode("ASCII", "ignore").decode().lower(): term.capitalize() for term in style_terms}
+    styles = []
+    for tag in tags:
+        tag_normalized = unicodedata.normalize("NFKD", tag).encode("ASCII", "ignore").decode().lower()
+        for norm_term, display_term in normalized_style_map.items():
+            if norm_term in tag_normalized:
+                added = add_term(display_term)
+                if added:
+                    styles.append(added)
+                break
+    style_str = ' '.join(styles)
 
+    stone_shape = ""
     shape_priority = ["round", "heart", "square", "pear", "triangle", "oblong", "stellar"]
-    stone_shape = next((shape.capitalize() for shape in shape_priority if shape in normalized_tags), "")
+    for shape in shape_priority:
+        if shape in normalized_tags:
+            stone_shape = shape.capitalize()
+            break
 
-    matched_type = get_stone_type(raw_title, full_text, tags)
+    stone_color_substitutions = {
+        "ruby": "Red", "turquoise": "Blue", "garnet": "Red", "amethyst": "Purple", "black": "Black",
+        "sea blue": "Blue", "montana": "Blue", "clear": "Clear", "siam": "Red", "peridot": "Green"
+    }
+
+    stone_type_substitutions = {
+        "synthetic turquoise": "Simulated Turquoise",
+        "synthetic garnet": "Simulated Garnet",
+        "precious stone garnet": "Simulated Garnet",
+        "top grade crystal": "Simulated Crystal",
+        "synthetic glass": "Synthetic Glass",
+        "synthetic pearl": "Simulated Pearl"
+    }
+
+    matched_type = None
+    if "no stone" in raw_title_lower or "no stone" in full_text or "no stone" in normalized_tags:
+        matched_type = None
+    else:
+        combined_text = raw_title_lower + " " + full_text
+        for raw_type, formatted in stone_type_substitutions.items():
+            if raw_type in combined_text:
+                matched_type = formatted
+                break
 
     color = ""
     if matched_type:
         match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
         if match:
             raw_color = match.group(1).strip().lower()
-            color_map = {
-                "ruby": "Red", "turquoise": "Blue", "garnet": "Red", "amethyst": "Purple", "black": "Black",
-                "sea blue": "Blue", "montana": "Blue", "clear": "Clear", "siam": "Red", "peridot": "Green"
-            }
-            color = color_map.get(raw_color, raw_color.title())
+            color = stone_color_substitutions.get(raw_color, raw_color.title())
         title = re.sub(r'in\s+[a-zA-Z ]+', '', title).strip(', ')
 
-    if matched_type == "No Stone":
-        stone = "with No Stone"
-    elif matched_type:
+    if matched_type:
         stone = f"{stone_shape + ' ' if stone_shape else ''}{color + ' ' if color else ''}{matched_type}".strip()
     else:
         stone = ""
 
-    plating = "Sterling Silver" if "sterling" in raw_title_lower else ""
-    parts = list(filter(None, [base, style_str, stone, plating]))
+    plating_keywords = {
+        "ip gold": "Gold-Plated", "ip rose gold": "Rose Gold-Plated", "ip black": "Black-Plated",
+        "ip brown": "Brown-Plated", "ip light brown": "Brown-Plated", "ip coffee": "Brown-Plated",
+        "ip light coffee": "Brown-Plated", "rhodium": "Rhodium-Plated"
+    }
+    platings_found = [label for keyword, label in plating_keywords.items() if keyword in raw_title_lower]
+    plating = f"{platings_found[1].split('-')[0]} & {platings_found[0]}" if len(platings_found) == 2 else platings_found[0] if platings_found else ""
+
+    material = ""
+    if "stainless" in raw_title_lower:
+        material = "Stainless Steel"
+    elif "925 sterling silver" in raw_title_lower or "simply sterling" in normalized_tags or "925 sterling silver" in normalized_tags:
+        material = "Sterling Silver"
+    elif "iron" in raw_title_lower or "iron" in normalized_tags:
+        material = "Iron"
+    elif "brass" in raw_title_lower or "brass" in normalized_tags:
+        material = "Brass"
+
+    metal_info_parts = [add_term(material), add_term(plating)]
+    metal_info = ' '.join(filter(None, metal_info_parts))
+
+    parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
 
-    if is_set and len(final_title) + len(", 2 Pcs") <= 80:
+    if is_set and "2 pcs" not in used_terms and len(final_title + ", 2 Pcs") <= 80:
         final_title += ", 2 Pcs"
-    if "high polished" in raw_title_lower and len(final_title) + len(", High Polished") <= 80:
+        used_terms.add("2 pcs")
+
+    if "high polished" in raw_title_lower and len(final_title + ", High Polished") <= 80:
         final_title += ", High Polished"
+
     if len(final_title) > 80 and "Cubic Zirconia" in final_title:
         final_title = final_title.replace("Cubic Zirconia", "CZ")
+
     return final_title.strip()
 
 if "title" not in st.session_state:
