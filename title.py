@@ -42,6 +42,52 @@ def extract_product_info(url):
         st.write("DEBUG: Error extracting tags", str(e))
         return None, [], ""
 
+def get_stone_type(product_title, full_text, tags):
+    stone_type_substitutions = {
+        "top grade crystal": "Simulated Crystal",
+        "synthetic glass": "Synthetic Glass",
+        "cubic zirconia": "Cubic Zirconia",
+        "aaa cubic zirconia": "Cubic Zirconia",
+        "aaa cz": "CZ",
+        "cz": "CZ",
+        "precious stone garnet": "Simulated Garnet",
+        "synthetic garnet": "Simulated Garnet",
+        "synthetic turquoise": "Simulated Turquoise",
+        "precious stone turquoise": "Simulated Turquoise",
+        "semi-precious turquoise": "Simulated Turquoise",
+        "precious stone conch": "Simulated Stone Conch",
+        "precious stone lapis": "Simulated Stone Lapis",
+        "precious stone pink crystal": "Simulated Stone PINK CRYSTAL",
+        "precious stone amethyst crystal": "Simulated Stone Amethyst Crystal",
+        "synthetic acrylic": "Synthetic Acrylic",
+        "synthetic imitation amber": "Synthetic Imitation Amber",
+        "ceramic": "Ceramic",
+        "synthetic synthetic glass": "Synthetic Glass",
+        "synthetic glass bead": "Simulated Glass Bead",
+        "semi-precious jade": "Simulated Jade",
+        "synthetic jade": "Simulated Jade",
+        "synthetic cat eye": "Simulated Cat Eye",
+        "semi-precious marcasite": "Simulated Marcasite",
+        "synthetic spinel": "Simulated Spinel",
+        "synthetic pearl": "Simulated Pearl",
+        "synthetic synthetic stone": "Synthetic Stone"
+    }
+
+    combined_text = (product_title + " " + full_text).lower()
+    tags = [tag.lower() for tag in tags]
+
+    if "no stone" in combined_text or "no stone" in tags:
+        return None
+
+    for raw_type, formatted in stone_type_substitutions.items():
+        if raw_type in combined_text:
+            return formatted
+
+    if "aaa grade cz" in tags or "cubic zirconia" in tags:
+        return "Cubic Zirconia"
+
+    return None
+
 def transform_title(raw_title, tags, full_text):
     title = re.sub(r'^[A-Z0-9\-]+\s*[-–—]?\s*', '', raw_title)
     raw_title_lower = raw_title.lower()
@@ -113,56 +159,22 @@ def transform_title(raw_title, tags, full_text):
             stone_shape = shape.capitalize()
             break
 
-    stone_color_substitutions = {
-        "jet": "Black", "black": "Black", "light gray": "Light Gray", "gray": "Gray", "white": "White",
-        "clear": "Clear", "siam": "Red", "ruby": "Red", "rose": "Rose", "garnet": "Red", "light rose": "Rose",
-        "orange": "Orange", "champagne": "Champagne", "multi color": "Multicolor", "citrine yellow": "Yellow",
-        "topaz": "Yellow", "citrine": "Yellow", "light gold": "Light Gold", "emerald": "Green", "blue zircon": "Blue",
-        "peridot": "Green", "olivine color": "Green", "apple green color": "Green", "sapphire": "Blue",
-        "montana": "Blue", "sea blue": "Blue", "aquamarine": "Blue", "london blue": "Blue", "tanzanite": "Blue",
-        "amethyst": "Purple", "light amethyst": "Light Purple", "brown": "Brown", "smoked quartz": "Smoky Brown",
-        "coffee": "Coffee", "light coffee": "Coffee"
-    }
+    matched_type = get_stone_type(raw_title, full_text, tags)
 
-    stone_type_substitutions = {
-        "synthetic pearl": "Simulated Pearl", "top grade crystal": "Simulated Crystal",
-        "synthetic glass": "Synthetic Glass", "cubic zirconia": "Cubic Zirconia",
-        "aaa cubic zirconia": "Cubic Zirconia", "aaa cz": "CZ", "cz": "CZ",
-        "precious stone garnet": "Simulated Garnet", "synthetic garnet": "Simulated Garnet",
-        "synthetic turquoise": "Simulated Turquoise", "precious stone turquoise": "Simulated Turquoise",
-        "semi-precious turquoise": "Simulated Turquoise"
-    }
-
-    stone = ""
-    matched_type = None
-    combined_text = (raw_title + " " + full_text).lower()
-
-    # Skip stone matching if 'No Stone' present
-    if "no stone" not in combined_text and "no stone" not in normalized_tags:
-        for raw_type, formatted in stone_type_substitutions.items():
-            if raw_type in combined_text:
-                matched_type = formatted
-                break
-
-        # Fallback only if nothing else matched
-        if not matched_type and any(term in combined_text for term in ["cubic zirconia", "aaa cz", "cz"]):
-            matched_type = "CZ"
-
+    color = ""
     if matched_type:
         match = re.search(r'in ([a-zA-Z ]+)', raw_title_lower)
         if match:
             raw_color = match.group(1).strip().lower()
+            stone_color_substitutions = {
+                "ruby": "Red", "turquoise": "Blue", "garnet": "Red", "amethyst": "Purple", "black": "Black",
+                "sea blue": "Blue", "montana": "Blue", "clear": "Clear", "siam": "Red", "peridot": "Green"
+            }
             color = stone_color_substitutions.get(raw_color, raw_color.title())
-        else:
-            color = ""
-
         title = re.sub(r'in\s+[a-zA-Z ]+', '', title).strip(', ')
         raw_title_lower = title.lower()
 
-        if color:
-            stone = f"{stone_shape + ' ' if stone_shape else ''}{color} {matched_type}".strip()
-        else:
-            stone = f"{stone_shape + ' ' if stone_shape else ''}{matched_type}".strip()
+    stone = f"{stone_shape + ' ' if stone_shape else ''}{color + ' ' if color else ''}{matched_type}".strip() if matched_type else ""
 
     plating_keywords = {
         "ip gold": "Gold-Plated", "ip rose gold": "Rose Gold-Plated", "ip black": "Black-Plated",
