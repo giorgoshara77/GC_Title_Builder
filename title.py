@@ -91,7 +91,10 @@ def transform_title(raw_title, tags, full_text):
         else:
             product_type = "Necklace"
 
-    if gender and product_type:
+    # Prevent duplicate gender in product_type
+    if gender and product_type.lower().startswith(f"{gender.lower()}'s "):
+        base = add_term(product_type)  # Already includes gender
+    elif gender and product_type:
         base = add_term(f"{gender}'s {product_type}")
     elif product_type:
         base = add_term(product_type)
