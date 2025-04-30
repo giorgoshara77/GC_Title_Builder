@@ -63,6 +63,11 @@ def transform_title(raw_title, tags, full_text):
         product_type = "Ring Band"
     elif "cocktail & statement" in normalized_tags and "rings" in normalized_tags and "women" in normalized_tags:
         product_type = "Cocktail Ring"
+    elif "promise" in normalized_tags and ("rings" in normalized_tags or "ring" in normalized_tags):
+        if gender:
+            product_type = f"{gender}'s Promise Ring"
+        else:
+            product_type = "Promise Ring"
     elif "earrings" in normalized_tags and "women" in normalized_tags:
         if "stud" in normalized_tags:
             product_type = "Stud Earrings"
