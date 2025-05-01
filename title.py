@@ -191,6 +191,7 @@ def transform_title(raw_title, tags, full_text):
 
     parts = list(filter(None, [base, style_str, stone, metal_info]))
     final_title = ', '.join(parts)
+    final_title = final_title.replace("Pavé", "Pave")  # eBay-friendly spelling
 
     if is_set and "2 pcs" not in used_terms and len(final_title + ", 2 Pcs") <= 80:
         final_title += ", 2 Pcs"
